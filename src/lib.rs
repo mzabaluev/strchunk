@@ -1,4 +1,4 @@
 extern crate bytes;
 
 mod chunk;
-pub use chunk::StrChunk;
+pub use chunk::{ExtractUtf8Error, StrChunk};

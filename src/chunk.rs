@@ -1,11 +1,12 @@
 use bytes::{Bytes, BytesMut, IntoBuf};
 use std::{
     borrow::Borrow,
+    error::Error,
     fmt::{self, Debug, Display},
     io::Cursor,
     iter::FromIterator,
     ops::Deref,
-    str::{self, Utf8Error},
+    str,
 };
 
 #[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -22,28 +23,32 @@ impl StrChunk {
 
     pub fn extract_utf8(
         src: &mut BytesMut,
-    ) -> Result<Option<StrChunk>, Utf8Error> {
+    ) -> Result<Option<StrChunk>, ExtractUtf8Error> {
         match str::from_utf8(src) {
             Ok(_) => {
                 // Valid UTF-8 fills the entire source buffer
-                let bytes = src.take().into();
+                let bytes = src.take().freeze();
                 Ok(Some(StrChunk { bytes }))
             }
             Err(e) => {
+                let valid_len = e.valid_up_to();
+                let extracted = if valid_len == 0 {
+                    None
+                } else {
+                    let bytes = src.split_to(valid_len).freeze();
+                    Some(StrChunk { bytes })
+                };
                 match e.error_len() {
                     None => {
                         // Incomplete UTF-8 sequence seen at the end
-                        let valid_len = e.valid_up_to();
-                        if valid_len == 0 {
-                            Ok(None)
-                        } else {
-                            let bytes = src.split_to(valid_len).into();
-                            Ok(Some(StrChunk { bytes }))
-                        }
+                        Ok(extracted)
                     }
-                    Some(_) => {
+                    Some(error_len) => {
                         // Invalid UTF-8 encountered
-                        Err(e)
+                        Err(ExtractUtf8Error {
+                            extracted,
+                            error_len,
+                        })
                     }
                 }
             }
@@ -161,3 +166,27 @@ impl<'a> IntoBuf for &'a StrChunk {
         (&self.bytes).into_buf()
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct ExtractUtf8Error {
+    extracted: Option<StrChunk>,
+    error_len: usize,
+}
+
+impl ExtractUtf8Error {
+    pub fn into_extracted(self) -> Option<StrChunk> {
+        self.extracted
+    }
+
+    pub fn error_len(&self) -> usize {
+        self.error_len
+    }
+}
+
+impl Display for ExtractUtf8Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "invalid UTF-8 sequence in input")
+    }
+}
+
+impl Error for ExtractUtf8Error {}

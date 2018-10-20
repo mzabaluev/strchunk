@@ -3,7 +3,7 @@ use super::StrChunk;
 use bytes::{BufMut, Bytes, BytesMut, IntoBuf};
 
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, BorrowMut},
     fmt::{self, Debug, Display},
     io::Cursor,
     iter::{FromIterator, Iterator},
@@ -69,7 +69,12 @@ impl StrChunkMut {
 
     #[inline]
     fn as_str(&self) -> &str {
-        unsafe { str::from_utf8_unchecked(&self.bytes) }
+        unsafe { str::from_utf8_unchecked(&*self.bytes) }
+    }
+
+    #[inline]
+    fn as_mut_str(&mut self) -> &mut str {
+        unsafe { str::from_utf8_unchecked_mut(&mut *self.bytes) }
     }
 
     #[inline]
@@ -162,10 +167,24 @@ impl AsRef<str> for StrChunkMut {
     }
 }
 
+impl AsMut<str> for StrChunkMut {
+    #[inline]
+    fn as_mut(&mut self) -> &mut str {
+        self.as_mut_str()
+    }
+}
+
 impl Borrow<str> for StrChunkMut {
     #[inline]
     fn borrow(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl BorrowMut<str> for StrChunkMut {
+    #[inline]
+    fn borrow_mut(&mut self) -> &mut str {
+        self.as_mut_str()
     }
 }
 

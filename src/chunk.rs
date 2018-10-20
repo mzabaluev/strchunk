@@ -56,14 +56,6 @@ impl StrChunk {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.bytes.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
-    }
-
     fn as_str(&self) -> &str {
         unsafe { str::from_utf8_unchecked(&self.bytes) }
     }

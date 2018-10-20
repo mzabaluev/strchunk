@@ -16,6 +16,7 @@ pub struct StrChunk {
 }
 
 impl StrChunk {
+    #[inline]
     pub fn from_static(s: &'static str) -> StrChunk {
         StrChunk {
             bytes: Bytes::from_static(s.as_bytes()),
@@ -56,6 +57,7 @@ impl StrChunk {
         }
     }
 
+    #[inline]
     fn as_str(&self) -> &str {
         unsafe { str::from_utf8_unchecked(&self.bytes) }
     }
@@ -75,18 +77,21 @@ impl Display for StrChunk {
 }
 
 impl From<String> for StrChunk {
+    #[inline]
     fn from(src: String) -> StrChunk {
         StrChunk { bytes: src.into() }
     }
 }
 
 impl<'a> From<&'a str> for StrChunk {
+    #[inline]
     fn from(src: &'a str) -> StrChunk {
         StrChunk { bytes: src.into() }
     }
 }
 
 impl From<StrChunk> for Bytes {
+    #[inline]
     fn from(src: StrChunk) -> Bytes {
         src.bytes
     }
@@ -100,6 +105,7 @@ impl From<StrChunk> for String {
 }
 
 impl AsRef<[u8]> for StrChunk {
+    #[inline]
     fn as_ref(&self) -> &[u8] {
         self.bytes.as_ref()
     }
@@ -124,13 +130,14 @@ impl Deref for StrChunk {
 
     #[inline]
     fn deref(&self) -> &str {
-        self.as_ref()
+        self.as_str()
     }
 }
 
 impl IntoBuf for StrChunk {
     type Buf = Cursor<Bytes>;
 
+    #[inline]
     fn into_buf(self) -> Self::Buf {
         self.bytes.into_buf()
     }
@@ -139,6 +146,7 @@ impl IntoBuf for StrChunk {
 impl<'a> IntoBuf for &'a StrChunk {
     type Buf = Cursor<&'a Bytes>;
 
+    #[inline]
     fn into_buf(self) -> Self::Buf {
         (&self.bytes).into_buf()
     }

@@ -94,12 +94,6 @@ impl<'a> From<&'a str> for StrChunk {
     }
 }
 
-impl FromIterator<char> for StrChunk {
-    fn from_iter<T: IntoIterator<Item = char>>(into_iter: T) -> Self {
-        StrChunkMut::from_iter(into_iter).into()
-    }
-}
-
 impl From<StrChunk> for Bytes {
     fn from(src: StrChunk) -> Bytes {
         src.bytes
@@ -155,6 +149,12 @@ impl<'a> IntoBuf for &'a StrChunk {
 
     fn into_buf(self) -> Self::Buf {
         (&self.bytes).into_buf()
+    }
+}
+
+impl FromIterator<char> for StrChunk {
+    fn from_iter<T: IntoIterator<Item = char>>(into_iter: T) -> Self {
+        StrChunkMut::from_iter(into_iter).into()
     }
 }
 

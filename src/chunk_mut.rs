@@ -169,12 +169,6 @@ impl Borrow<str> for StrChunkMut {
     }
 }
 
-impl FromIterator<char> for StrChunkMut {
-    fn from_iter<T: IntoIterator<Item = char>>(into_iter: T) -> Self {
-        StrChunkMut::from_iter_internal(into_iter.into_iter())
-    }
-}
-
 impl IntoBuf for StrChunkMut {
     type Buf = Cursor<BytesMut>;
 
@@ -190,5 +184,11 @@ impl<'a> IntoBuf for &'a StrChunkMut {
     #[inline]
     fn into_buf(self) -> Self::Buf {
         (&self.bytes).into_buf()
+    }
+}
+
+impl FromIterator<char> for StrChunkMut {
+    fn from_iter<T: IntoIterator<Item = char>>(into_iter: T) -> Self {
+        StrChunkMut::from_iter_internal(into_iter.into_iter())
     }
 }

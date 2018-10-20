@@ -1,3 +1,4 @@
+use super::StrChunkMut;
 use bytes::{Bytes, BytesMut, IntoBuf};
 use std::{
     borrow::Borrow,
@@ -95,17 +96,7 @@ impl<'a> From<&'a str> for StrChunk {
 
 impl FromIterator<char> for StrChunk {
     fn from_iter<T: IntoIterator<Item = char>>(into_iter: T) -> Self {
-        let iter = into_iter.into_iter();
-        // Reserve at least as many bytes as there are promised to be characters
-        let mut bytes = BytesMut::with_capacity(iter.size_hint().0);
-        let mut buf: [u8; 4] = [0; 4];
-        for c in iter {
-            let utf8 = c.encode_utf8(&mut buf);
-            bytes.extend_from_slice(utf8.as_bytes());
-        }
-        StrChunk {
-            bytes: bytes.into(),
-        }
+        StrChunkMut::from_iter(into_iter).into()
     }
 }
 

@@ -10,7 +10,8 @@ use std::{
     str,
 };
 
-#[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(not(feature = "specialization"), derive(PartialEq))]
+#[derive(Clone, Default, Eq, PartialOrd, Ord, Hash)]
 pub struct StrChunk {
     bytes: Bytes,
 }

@@ -1,5 +1,9 @@
-use super::StrChunkMut;
+use chunk_mut::StrChunkMut;
+use plumbing::validate_str_split;
+use split::{SplitRange, Take};
+
 use bytes::{Bytes, BytesMut, IntoBuf};
+
 use std::{
     borrow::Borrow,
     error::Error,
@@ -159,6 +163,24 @@ impl FromIterator<char> for StrChunk {
     }
 }
 
+impl Take for StrChunk {
+    type Output = StrChunk;
+
+    fn take<R>(&mut self, range: R) -> StrChunk
+    where
+        R: Into<SplitRange>,
+    {
+        let range = range.into();
+        validate_str_split(self.as_str(), &range);
+        let bytes = match range {
+            SplitRange::Full(_) => self.bytes.split_off(0),
+            SplitRange::From(r) => self.bytes.split_off(r.start),
+            SplitRange::To(r) => self.bytes.split_to(r.end),
+        };
+        StrChunk { bytes }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ExtractUtf8Error {
     extracted: Option<StrChunk>,
@@ -182,3 +204,23 @@ impl Display for ExtractUtf8Error {
 }
 
 impl Error for ExtractUtf8Error {}
+
+#[cfg(test)]
+mod tests {
+    use super::StrChunk;
+    use split::Take;
+
+    #[should_panic]
+    #[test]
+    fn take_panic_oob() {
+        let mut buf = StrChunk::from("Hello");
+        let _ = buf.take(..6);
+    }
+
+    #[should_panic]
+    #[test]
+    fn take_panic_split_utf8() {
+        let mut buf = StrChunk::from("Привет");
+        let _ = buf.take(3..);
+    }
+}

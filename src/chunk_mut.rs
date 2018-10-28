@@ -1,4 +1,6 @@
-use super::StrChunk;
+use chunk::StrChunk;
+use plumbing::validate_str_split;
+use split::{SplitRange, Take};
 
 use bytes::{BufMut, Bytes, BytesMut, IntoBuf};
 
@@ -59,13 +61,6 @@ impl StrChunkMut {
     #[inline]
     pub fn freeze(self) -> StrChunk {
         StrChunk::from(self)
-    }
-
-    #[inline]
-    pub fn take(&mut self) -> StrChunkMut {
-        StrChunkMut {
-            bytes: self.bytes.take(),
-        }
     }
 
     #[inline]
@@ -210,5 +205,43 @@ impl<'a> IntoBuf for &'a StrChunkMut {
 impl FromIterator<char> for StrChunkMut {
     fn from_iter<T: IntoIterator<Item = char>>(into_iter: T) -> Self {
         StrChunkMut::from_iter_internal(into_iter.into_iter())
+    }
+}
+
+impl Take for StrChunkMut {
+    type Output = StrChunkMut;
+
+    fn take<R>(&mut self, range: R) -> StrChunkMut
+    where
+        R: Into<SplitRange>,
+    {
+        let range = range.into();
+        validate_str_split(self.as_str(), &range);
+        let bytes = match range.into() {
+            SplitRange::Full(_) => self.bytes.take(),
+            SplitRange::From(r) => self.bytes.split_off(r.start),
+            SplitRange::To(r) => self.bytes.split_to(r.end),
+        };
+        StrChunkMut { bytes }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StrChunkMut;
+    use split::Take;
+
+    #[should_panic]
+    #[test]
+    fn take_panic_oob() {
+        let mut buf = StrChunkMut::from("Hello");
+        let _ = buf.take(..6);
+    }
+
+    #[should_panic]
+    #[test]
+    fn take_panic_split_utf8() {
+        let mut buf = StrChunkMut::from("Привет");
+        let _ = buf.take(3..);
     }
 }

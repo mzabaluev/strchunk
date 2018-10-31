@@ -57,6 +57,7 @@ mod bind_slice_private {
     impl Sealed for RangeFrom<usize> {}
     impl Sealed for RangeTo<usize> {}
     impl Sealed for RangeToInclusive<usize> {}
+    impl Sealed for super::SplitRange {}
 }
 
 impl BindSlice<str> for RangeFull {
@@ -93,6 +94,17 @@ impl BindSlice<str> for RangeToInclusive<usize> {
     fn bind_slice(&self, slice: &str) -> SplitRange {
         let excl_range = convert_inclusive_range(*self);
         excl_range.bind_slice(slice)
+    }
+}
+
+impl BindSlice<str> for SplitRange {
+    #[inline]
+    fn bind_slice(&self, slice: &str) -> SplitRange {
+        match self {
+            SplitRange::Full(r) => r.bind_slice(slice),
+            SplitRange::From(r) => r.bind_slice(slice),
+            SplitRange::To(r) => r.bind_slice(slice),
+        }
     }
 }
 

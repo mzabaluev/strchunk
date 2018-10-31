@@ -42,8 +42,21 @@ impl RangeBounds<usize> for SplitRange {
     }
 }
 
-pub trait BindSlice<S: ?Sized>: RangeBounds<usize> {
+pub trait BindSlice<S: ?Sized>:
+    RangeBounds<usize> + bind_slice_private::Sealed
+{
     fn bind_slice(&self, slice: &S) -> SplitRange;
+}
+
+mod bind_slice_private {
+    use std::ops::{RangeFrom, RangeFull, RangeTo, RangeToInclusive};
+
+    pub trait Sealed {}
+
+    impl Sealed for RangeFull {}
+    impl Sealed for RangeFrom<usize> {}
+    impl Sealed for RangeTo<usize> {}
+    impl Sealed for RangeToInclusive<usize> {}
 }
 
 impl BindSlice<str> for RangeFull {

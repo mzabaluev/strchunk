@@ -1,6 +1,5 @@
 use chunk_mut::StrChunkMut;
-use plumbing::validate_str_split;
-use split::{SplitRange, Take};
+use split::{BindSlice, SplitRange, Take};
 
 use bytes::{Bytes, BytesMut, IntoBuf};
 
@@ -163,16 +162,14 @@ impl FromIterator<char> for StrChunk {
     }
 }
 
-impl Take for StrChunk {
+impl Take<str> for StrChunk {
     type Output = StrChunk;
 
     fn take<R>(&mut self, range: R) -> StrChunk
     where
-        R: Into<SplitRange>,
+        R: BindSlice<str>,
     {
-        let range = range.into();
-        validate_str_split(self.as_str(), &range);
-        let bytes = match range {
+        let bytes = match range.bind_slice(self.as_str()) {
             SplitRange::Full(_) => self.bytes.split_off(0),
             SplitRange::From(r) => self.bytes.split_off(r.start),
             SplitRange::To(r) => self.bytes.split_to(r.end),

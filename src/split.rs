@@ -136,10 +136,18 @@ fn convert_inclusive_range(range: RangeToInclusive<usize>) -> RangeTo<usize> {
     ..excl_end
 }
 
-pub trait Take<S: ?Sized> {
+pub trait Take {
+    type Slice: ?Sized;
     type Output;
 
-    fn take<R>(&mut self, range: R) -> Self::Output
+    fn take_range<R>(&mut self, range: R) -> Self::Output
     where
-        R: BindSlice<S>;
+        R: BindSlice<Self::Slice>;
+
+    fn remove_range<R>(&mut self, range: R)
+    where
+        R: BindSlice<Self::Slice>,
+    {
+        self.take_range(range);
+    }
 }

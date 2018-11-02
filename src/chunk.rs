@@ -162,10 +162,11 @@ impl FromIterator<char> for StrChunk {
     }
 }
 
-impl Take<str> for StrChunk {
+impl Take for StrChunk {
+    type Slice = str;
     type Output = StrChunk;
 
-    fn take<R>(&mut self, range: R) -> StrChunk
+    fn take_range<R>(&mut self, range: R) -> StrChunk
     where
         R: BindSlice<str>,
     {
@@ -175,6 +176,17 @@ impl Take<str> for StrChunk {
             SplitRange::To(r) => self.bytes.split_to(r.end),
         };
         StrChunk { bytes }
+    }
+
+    fn remove_range<R>(&mut self, range: R)
+    where
+        R: BindSlice<str>,
+    {
+        match range.bind_slice(self.as_str()) {
+            SplitRange::Full(_) => self.bytes.clear(),
+            SplitRange::From(r) => self.bytes.truncate(r.start),
+            SplitRange::To(r) => self.bytes.advance(r.end),
+        }
     }
 }
 
@@ -211,13 +223,13 @@ mod tests {
     #[test]
     fn take_panic_oob() {
         let mut buf = StrChunk::from("Hello");
-        let _ = buf.take(..6);
+        let _ = buf.take_range(..6);
     }
 
     #[should_panic]
     #[test]
     fn take_panic_split_utf8() {
         let mut buf = StrChunk::from("Привет");
-        let _ = buf.take(3..);
+        let _ = buf.take_range(3..);
     }
 }

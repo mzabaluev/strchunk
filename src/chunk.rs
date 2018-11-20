@@ -21,6 +21,13 @@ pub struct StrChunk {
 
 impl StrChunk {
     #[inline]
+    pub fn new() -> StrChunk {
+        StrChunk {
+            bytes: Bytes::new(),
+        }
+    }
+
+    #[inline]
     pub fn from_static(s: &'static str) -> StrChunk {
         StrChunk {
             bytes: Bytes::from_static(s.as_bytes()),

@@ -1,5 +1,5 @@
-use chunk_mut::StrChunkMut;
-use split::{BindSlice, SplitRange, Take};
+use crate::chunk_mut::StrChunkMut;
+use crate::split::{BindSlice, SplitRange, Take};
 
 use bytes::{Bytes, BytesMut, IntoBuf};
 
@@ -224,7 +224,7 @@ impl Error for ExtractUtf8Error {}
 #[cfg(test)]
 mod tests {
     use super::StrChunk;
-    use split::Take;
+    use crate::split::Take;
 
     #[should_panic]
     #[test]

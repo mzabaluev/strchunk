@@ -34,7 +34,7 @@ macro_rules! for_all_str_types {
 #[cfg(not(feature = "specialization"))]
 mod tedious {
     use std::borrow::{Borrow, Cow};
-    use {StrChunk, StrChunkMut};
+    use crate::{StrChunk, StrChunkMut};
 
     macro_rules! impl_partial_eq {
         ($T:ty, $Rhs:ty) => {
@@ -53,7 +53,7 @@ mod tedious {
 
 mod foreign {
     use std::borrow::Cow;
-    use {StrChunk, StrChunkMut};
+    use crate::{StrChunk, StrChunkMut};
 
     macro_rules! impl_partial_eq_rhs {
         ($T:ty, $Lhs:ty) => {
@@ -101,7 +101,7 @@ mod tests {
         mod chunk {
             use super::super::TEST_STR;
             use std::borrow::Cow;
-            use StrChunk;
+            use crate::StrChunk;
 
             test_all_str_types! { test_eq!, StrChunk::from_static(TEST_STR) }
         }
@@ -109,7 +109,7 @@ mod tests {
         mod chunk_mut {
             use super::super::TEST_STR;
             use std::borrow::Cow;
-            use StrChunkMut;
+            use crate::StrChunkMut;
 
             test_all_str_types! { test_eq!, StrChunkMut::from(TEST_STR) }
         }

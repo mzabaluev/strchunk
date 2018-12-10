@@ -1,5 +1,5 @@
-use chunk::StrChunk;
-use split::{BindSlice, SplitRange, Take};
+use crate::chunk::StrChunk;
+use crate::split::{BindSlice, SplitRange, Take};
 
 use bytes::{BufMut, Bytes, BytesMut, IntoBuf};
 
@@ -238,7 +238,7 @@ impl Take for StrChunkMut {
 #[cfg(test)]
 mod tests {
     use super::StrChunkMut;
-    use split::Take;
+    use crate::split::Take;
 
     #[should_panic]
     #[test]

@@ -69,7 +69,7 @@ impl StrChunk {
     }
 
     #[inline]
-    fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         unsafe { str::from_utf8_unchecked(&self.bytes) }
     }
 

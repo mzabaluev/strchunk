@@ -63,12 +63,12 @@ impl StrChunkMut {
     }
 
     #[inline]
-    fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         unsafe { str::from_utf8_unchecked(&*self.bytes) }
     }
 
     #[inline]
-    fn as_mut_str(&mut self) -> &mut str {
+    pub fn as_mut_str(&mut self) -> &mut str {
         unsafe { str::from_utf8_unchecked_mut(&mut *self.bytes) }
     }
 

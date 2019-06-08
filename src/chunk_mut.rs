@@ -73,6 +73,11 @@ impl StrChunkMut {
     }
 
     #[inline]
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    #[inline]
     pub fn put_char(&mut self, c: char) {
         let bytes = &mut self.bytes;
         unsafe {

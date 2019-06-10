@@ -36,21 +36,16 @@ impl StrChunk {
 
     pub fn extract_utf8(
         src: &mut BytesMut,
-    ) -> Result<Option<StrChunk>, ExtractUtf8Error> {
+    ) -> Result<StrChunk, ExtractUtf8Error> {
         match str::from_utf8(src) {
             Ok(_) => {
                 // Valid UTF-8 fills the entire source buffer
                 let bytes = src.take().freeze();
-                Ok(Some(StrChunk { bytes }))
+                Ok(StrChunk { bytes })
             }
             Err(e) => {
-                let valid_len = e.valid_up_to();
-                let extracted = if valid_len == 0 {
-                    None
-                } else {
-                    let bytes = src.split_to(valid_len).freeze();
-                    Some(StrChunk { bytes })
-                };
+                let bytes = src.split_to(e.valid_up_to()).freeze();
+                let extracted = StrChunk { bytes };
                 match e.error_len() {
                     None => {
                         // Incomplete UTF-8 sequence seen at the end
@@ -204,12 +199,12 @@ impl Take for StrChunk {
 
 #[derive(Clone, Debug)]
 pub struct ExtractUtf8Error {
-    extracted: Option<StrChunk>,
+    extracted: StrChunk,
     error_len: usize,
 }
 
 impl ExtractUtf8Error {
-    pub fn into_extracted(self) -> Option<StrChunk> {
+    pub fn into_extracted(self) -> StrChunk {
         self.extracted
     }
 

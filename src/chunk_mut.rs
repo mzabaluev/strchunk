@@ -5,10 +5,11 @@ use bytes::{BufMut, Bytes, BytesMut, IntoBuf};
 
 use std::{
     borrow::{Borrow, BorrowMut},
+    convert::TryFrom,
     fmt::{self, Debug, Display},
     io::Cursor,
     iter::{FromIterator, Iterator},
-    str,
+    str::{self, Utf8Error},
 };
 
 #[cfg_attr(not(feature = "specialization"), derive(PartialEq))]
@@ -129,6 +130,22 @@ impl<'a> From<&'a str> for StrChunkMut {
     #[inline]
     fn from(src: &'a str) -> StrChunkMut {
         StrChunkMut { bytes: src.into() }
+    }
+}
+
+impl TryFrom<Bytes> for StrChunkMut {
+    type Error = Utf8Error;
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        str::from_utf8(&bytes)?;
+        Ok(StrChunkMut { bytes: bytes.into() })
+    }
+}
+
+impl TryFrom<BytesMut> for StrChunkMut {
+    type Error = Utf8Error;
+    fn try_from(bytes: BytesMut) -> Result<Self, Self::Error> {
+        str::from_utf8(&bytes)?;
+        Ok(StrChunkMut { bytes })
     }
 }
 

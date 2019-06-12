@@ -1,18 +1,18 @@
 use crate::chunk_mut::StrChunkMut;
-use crate::split::{BindSlice, SplitRange, Take};
+use crate::split::TakeRange;
 
 use bytes::{Bytes, BytesMut, IntoBuf};
 
-use std::{
-    borrow::Borrow,
-    convert::{TryFrom, TryInto},
-    error::Error,
-    fmt::{self, Debug, Display},
-    io::Cursor,
-    iter::FromIterator,
-    ops::Deref,
-    str::{self, Utf8Error},
-};
+use std::borrow::Borrow;
+use std::convert::{TryFrom, TryInto};
+use std::error::Error;
+use std::fmt::{self, Debug, Display};
+use std::io::Cursor;
+use std::iter::FromIterator;
+use std::ops::Deref;
+use std::ops::{RangeFrom, RangeFull, RangeTo, RangeToInclusive};
+use std::str::{self, Utf8Error};
+
 
 #[cfg_attr(not(feature = "specialization"), derive(PartialEq))]
 #[derive(Clone, Default, Eq, PartialOrd, Ord, Hash)]
@@ -185,31 +185,61 @@ impl FromIterator<char> for StrChunk {
     }
 }
 
-impl Take for StrChunk {
-    type Slice = str;
+impl TakeRange<RangeFull> for StrChunk {
     type Output = StrChunk;
 
-    fn take_range<R>(&mut self, range: R) -> StrChunk
-    where
-        R: BindSlice<str>,
-    {
-        let bytes = match range.bind_slice(self.as_str()) {
-            SplitRange::Full(_) => self.bytes.split_off(0),
-            SplitRange::From(r) => self.bytes.split_off(r.start),
-            SplitRange::To(r) => self.bytes.split_to(r.end),
-        };
+    fn take_range(&mut self, _: RangeFull) -> StrChunk {
+        let bytes = self.bytes.split_off(0);
         StrChunk { bytes }
     }
 
-    fn remove_range<R>(&mut self, range: R)
-    where
-        R: BindSlice<str>,
-    {
-        match range.bind_slice(self.as_str()) {
-            SplitRange::Full(_) => self.bytes.clear(),
-            SplitRange::From(r) => self.bytes.truncate(r.start),
-            SplitRange::To(r) => self.bytes.advance(r.end),
-        }
+    fn remove_range(&mut self, _: RangeFull) {
+        self.bytes.clear()
+    }
+}
+
+impl TakeRange<RangeFrom<usize>> for StrChunk {
+    type Output = StrChunk;
+
+    fn take_range(&mut self, range: RangeFrom<usize>) -> Self::Output {
+        validate_str_range!(self.as_str(), &range);
+        let bytes = self.bytes.split_off(range.start);
+        StrChunk { bytes }
+    }
+
+    fn remove_range(&mut self, range: RangeFrom<usize>) {
+        validate_str_range!(self.as_str(), &range);
+        self.bytes.truncate(range.start)
+    }
+}
+
+impl TakeRange<RangeTo<usize>> for StrChunk {
+    type Output = StrChunk;
+
+    fn take_range(&mut self, range: RangeTo<usize>) -> Self::Output {
+        validate_str_range!(self.as_str(), &range);
+        let bytes = self.bytes.split_to(range.end);
+        StrChunk { bytes }
+    }
+
+    fn remove_range(&mut self, range: RangeTo<usize>) {
+        validate_str_range!(self.as_str(), &range);
+        self.bytes.advance(range.end)
+    }
+}
+
+impl TakeRange<RangeToInclusive<usize>> for StrChunk {
+    type Output = StrChunk;
+
+    fn take_range(&mut self, range: RangeToInclusive<usize>) -> Self::Output {
+        validate_str_range!(self.as_str(), &range);
+        let bytes = self.bytes.split_to(range.end + 1);
+        StrChunk { bytes }
+    }
+
+    fn remove_range(&mut self, range: RangeToInclusive<usize>) {
+        validate_str_range!(self.as_str(), &range);
+        self.bytes.advance(range.end + 1)
     }
 }
 
@@ -240,7 +270,7 @@ impl Error for ExtractUtf8Error {}
 #[cfg(test)]
 mod tests {
     use super::StrChunk;
-    use crate::split::Take;
+    use crate::split::TakeRange;
 
     #[should_panic]
     #[test]

@@ -1,120 +1,63 @@
-use std::{
-    fmt::{self, Debug},
-    ops::{
-        Bound::{self, Unbounded},
-        RangeBounds, RangeFrom, RangeFull, RangeTo, RangeToInclusive,
-    },
-};
+use std::fmt::Debug;
+use std::ops::{Bound, RangeBounds};
 
-pub enum SplitRange {
-    Full(RangeFull),
-    From(RangeFrom<usize>),
-    To(RangeTo<usize>),
-}
+pub trait TakeRange<R> {
+    type Output;
 
-impl Debug for SplitRange {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            SplitRange::Full(r) => r.fmt(f),
-            SplitRange::From(r) => r.fmt(f),
-            SplitRange::To(r) => r.fmt(f),
-        }
+    fn take_range(&mut self, range: R) -> Self::Output;
+
+    fn remove_range(&mut self, range: R) {
+        self.take_range(range);
     }
 }
 
-impl RangeBounds<usize> for SplitRange {
-    #[inline]
-    fn start_bound(&self) -> Bound<&usize> {
-        match *self {
-            SplitRange::Full(_) => Unbounded,
-            SplitRange::From(ref r) => r.start_bound(),
-            SplitRange::To(ref r) => r.start_bound(),
-        }
-    }
-
-    #[inline]
-    fn end_bound(&self) -> Bound<&usize> {
-        match *self {
-            SplitRange::Full(_) => Unbounded,
-            SplitRange::From(ref r) => r.end_bound(),
-            SplitRange::To(ref r) => r.end_bound(),
-        }
-    }
-}
-
-pub trait BindSlice<S: ?Sized>:
-    RangeBounds<usize> + bind_slice_private::Sealed
+pub fn is_valid_str_range<R>(s: &str, range: &R) -> bool
+where
+    R: RangeBounds<usize>,
 {
-    fn bind_slice(&self, slice: &S) -> SplitRange;
+    is_valid_str_start_bound(s, range.start_bound())
+    && is_valid_str_end_bound(s, range.end_bound())
 }
 
-mod bind_slice_private {
-    use std::ops::{RangeFrom, RangeFull, RangeTo, RangeToInclusive};
+#[inline]
+fn is_valid_str_start_bound(s: &str, bound: Bound<&usize>) -> bool {
+    use std::ops::Bound::*;
 
-    pub trait Sealed {}
+    let index = match bound {
+        Unbounded => return true,
+        Included(index) => *index,
+        Excluded(_) => unreachable!(),
+    };
 
-    impl Sealed for RangeFull {}
-    impl Sealed for RangeFrom<usize> {}
-    impl Sealed for RangeTo<usize> {}
-    impl Sealed for RangeToInclusive<usize> {}
-    impl Sealed for super::SplitRange {}
+    s.is_char_boundary(index)
 }
 
-impl BindSlice<str> for RangeFull {
-    #[inline]
-    fn bind_slice(&self, _slice: &str) -> SplitRange {
-        SplitRange::Full(*self)
-    }
+#[inline]
+fn is_valid_str_end_bound(s: &str, bound: Bound<&usize>) -> bool {
+    use std::ops::Bound::*;
+
+    let index = match bound {
+        Unbounded => return true,
+        Excluded(index) => *index,
+        Included(index) => convert_inclusive_end_index(*index),
+    };
+
+    s.is_char_boundary(index)
 }
 
-impl BindSlice<str> for RangeFrom<usize> {
-    #[inline]
-    fn bind_slice(&self, slice: &str) -> SplitRange {
-        let range = SplitRange::From(self.clone());
-        if !slice.is_char_boundary(self.start) {
-            str_split_fail(slice, range);
-        }
-        range
-    }
-}
-
-impl BindSlice<str> for RangeTo<usize> {
-    #[inline]
-    fn bind_slice(&self, slice: &str) -> SplitRange {
-        let range = SplitRange::To(*self);
-        if !slice.is_char_boundary(self.end) {
-            str_split_fail(slice, range);
-        }
-        range
-    }
-}
-
-impl BindSlice<str> for RangeToInclusive<usize> {
-    #[inline]
-    fn bind_slice(&self, slice: &str) -> SplitRange {
-        let excl_range = convert_inclusive_range(*self);
-        excl_range.bind_slice(slice)
-    }
-}
-
-impl BindSlice<str> for SplitRange {
-    #[inline]
-    fn bind_slice(&self, slice: &str) -> SplitRange {
-        match self {
-            SplitRange::Full(r) => r.bind_slice(slice),
-            SplitRange::From(r) => r.bind_slice(slice),
-            SplitRange::To(r) => r.bind_slice(slice),
-        }
-    }
-}
-
-#[inline(never)]
 #[cold]
-fn str_split_fail(s: &str, range: SplitRange) -> ! {
-    let index = match range {
-        SplitRange::From(ref r) => r.start,
-        SplitRange::To(ref r) => r.end,
-        SplitRange::Full(_) => unreachable!(),
+#[inline(never)]
+pub fn str_range_fail<R>(s: &str, range: &R) -> !
+where
+    R: RangeBounds<usize> + Debug,
+{
+    use std::ops::Bound::*;
+
+    let index = match (range.start_bound(), range.end_bound()) {
+        (Included(index), Unbounded) => *index,
+        (Unbounded, Excluded(index)) => *index,
+        (Unbounded, Included(index)) => convert_inclusive_end_index(*index),
+        _ => unreachable!("unexpected range {:?} for a split failure", range),
     };
 
     if index > s.len() {
@@ -124,30 +67,12 @@ fn str_split_fail(s: &str, range: SplitRange) -> ! {
     }
 }
 
-fn convert_inclusive_range(range: RangeToInclusive<usize>) -> RangeTo<usize> {
-    // This should be always Ok for valid ranges, because usize is
-    // capable of representing the length of any slice in memory.
-    let excl_end = range.end.checked_add(1).unwrap_or_else(|| {
+#[inline]
+fn convert_inclusive_end_index(index: usize) -> usize {
+    index.checked_add(1).unwrap_or_else(|| {
         panic!(
-            "upper bound of range {:?} is too large for a buffer in memory",
-            range
+            "upper bound index {} is too large for a buffer in memory",
+            index
         )
-    });
-    ..excl_end
-}
-
-pub trait Take {
-    type Slice: ?Sized;
-    type Output;
-
-    fn take_range<R>(&mut self, range: R) -> Self::Output
-    where
-        R: BindSlice<Self::Slice>;
-
-    fn remove_range<R>(&mut self, range: R)
-    where
-        R: BindSlice<Self::Slice>,
-    {
-        self.take_range(range);
-    }
+    })
 }

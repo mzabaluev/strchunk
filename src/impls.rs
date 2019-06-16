@@ -109,6 +109,64 @@ mod foreign {
 mod tests {
 
     mod take_range {
+        macro_rules! test_take_range_effects_with {
+            ($func:expr) => {
+                #[test]
+                fn full() {
+                    let mut buf = "Hello".into();
+                    $func(&mut buf, .., "Hello", "");
+                }
+
+                #[test]
+                fn from_start() {
+                    let mut buf = "Hello".into();
+                    $func(&mut buf, 0.., "Hello", "");
+                }
+
+                #[test]
+                fn from_end() {
+                    let mut buf = "Hello".into();
+                    $func(&mut buf, 5.., "", "Hello");
+                }
+
+                #[test]
+                fn from_mid() {
+                    let mut buf = "Привет".into();
+                    $func(&mut buf, 6.., "вет", "При");
+                }
+
+                #[test]
+                fn to_start() {
+                    let mut buf = "Hello".into();
+                    $func(&mut buf, ..0, "", "Hello");
+                }
+
+                #[test]
+                fn to_end() {
+                    let mut buf = "Hello".into();
+                    $func(&mut buf, ..5, "Hello", "");
+                }
+
+                #[test]
+                fn to_mid() {
+                    let mut buf = "Привет".into();
+                    $func(&mut buf, ..6, "При", "вет");
+                }
+
+                #[test]
+                fn to_inclusive_end() {
+                    let mut buf = "Hello".into();
+                    $func(&mut buf, ..=4, "Hello", "");
+                }
+
+                #[test]
+                fn to_inclusive_mid() {
+                    let mut buf = "Привет".into();
+                    $func(&mut buf, ..=5, "При", "вет");
+                }
+            };
+        }
+
         macro_rules! test_take_range_panics_with {
             ($func:expr) => {
                 #[test]
@@ -127,7 +185,7 @@ mod tests {
 
                 #[test]
                 #[should_panic]
-                fn panics_on_oob_end_inclusive() {
+                fn panics_on_oob_inclusive_end() {
                     let mut buf = "Hello".into();
                     $func(&mut buf, ..=5);
                 }
@@ -148,17 +206,42 @@ mod tests {
 
                 #[test]
                 #[should_panic]
-                fn panics_on_split_utf8_end_inclusive() {
+                fn panics_on_split_utf8_inclusive_end() {
                     let mut buf = "Привет".into();
                     $func(&mut buf, ..=2);
                 }
             };
         }
 
-        macro_rules! test_take_range {
+        macro_rules! test_take_range_for {
             ($T:ty) => {
                 mod take_range {
                     use range_split::TakeRange;
+
+                    test_take_range_effects_with!(
+                        |buf: &mut $T,
+                         range,
+                         expected_output,
+                         expected_remainder| {
+                            let method_dbg =
+                                format!("take_range({:?})", &range);
+                            let output = TakeRange::take_range(buf, range);
+                            assert_eq!(
+                                output,
+                                expected_output,
+                                "expected output of `{}` for `{}`",
+                                method_dbg,
+                                stringify!($T)
+                            );
+                            assert_eq!(
+                                buf,
+                                expected_remainder,
+                                "expected buffer content after `{}` for `{}`",
+                                method_dbg,
+                                stringify!($T)
+                            );
+                        }
+                    );
 
                     test_take_range_panics_with!(|buf: &mut $T, range| {
                         TakeRange::take_range(buf, range)
@@ -168,6 +251,21 @@ mod tests {
                 mod remove_range {
                     use range_split::TakeRange;
 
+                    test_take_range_effects_with!(
+                        |buf: &mut $T, range, _, expected_remainder| {
+                            let method_dbg =
+                                format!("remove_range({:?})", &range);
+                            TakeRange::remove_range(buf, range);
+                            assert_eq!(
+                                buf,
+                                expected_remainder,
+                                "expected buffer content after `{}` for `{}`",
+                                method_dbg,
+                                stringify!($T)
+                            );
+                        }
+                    );
+
                     test_take_range_panics_with!(|buf: &mut $T, range| {
                         TakeRange::remove_range(buf, range);
                     });
@@ -176,10 +274,10 @@ mod tests {
         }
 
         mod chunk {
-            test_take_range!(crate::StrChunk);
+            test_take_range_for!(crate::StrChunk);
         }
         mod chunk_mut {
-            test_take_range!(crate::StrChunkMut);
+            test_take_range_for!(crate::StrChunkMut);
         }
     }
 

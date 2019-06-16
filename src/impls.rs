@@ -1,8 +1,44 @@
+use crate::{StrChunk, StrChunkMut};
+
+use range_split::TakeRange;
+
+use std::ops::{RangeFrom, RangeFull, RangeTo, RangeToInclusive};
+
+// A generic impl implemented through the intrinsic take_range/remove_range
+// would be enough for the purposes of this crate, but it would commit to
+// Bytes as the internal representation and limit any third-party trait
+// implementations to those implemented via Bytes. Also, the concrete impls
+// make better documentation.
+macro_rules! impl_take_range {
+    (<$Range:ty> for $T:path) => {
+        impl TakeRange<$Range> for $T {
+            type Output = $T;
+
+            fn take_range(&mut self, range: $Range) -> Self::Output {
+                Self::take_range(self, range)
+            }
+
+            fn remove_range(&mut self, range: $Range) {
+                Self::remove_range(self, range)
+            }
+        }
+    };
+}
+
+impl_take_range!(<RangeFull> for StrChunk);
+impl_take_range!(<RangeFrom<usize>> for StrChunk);
+impl_take_range!(<RangeTo<usize>> for StrChunk);
+impl_take_range!(<RangeToInclusive<usize>> for StrChunk);
+impl_take_range!(<RangeFull> for StrChunkMut);
+impl_take_range!(<RangeFrom<usize>> for StrChunkMut);
+impl_take_range!(<RangeTo<usize>> for StrChunkMut);
+impl_take_range!(<RangeToInclusive<usize>> for StrChunkMut);
+
 #[cfg(feature = "specialization")]
 mod generic {
-    use std::borrow::Borrow;
-    use {StrChunk, StrChunkMut};
 
+    use crate::{StrChunk, StrChunkMut};
+    use std::borrow::Borrow;
     impl<Rhs> PartialEq<Rhs> for StrChunk
     where
         Rhs: ?Sized + Borrow<str>,
@@ -27,14 +63,14 @@ macro_rules! for_all_str_types {
         $macro! { $T, str }
         $macro! { $T, &'a str }
         $macro! { $T, String }
-        $macro! { $T, Cow<'a, str> }
+        $macro! { $T, ::std::borrow::Cow<'a, str> }
     };
 }
 
 #[cfg(not(feature = "specialization"))]
 mod tedious {
-    use std::borrow::{Borrow, Cow};
     use crate::{StrChunk, StrChunkMut};
+    use std::borrow::Borrow;
 
     macro_rules! impl_partial_eq {
         ($T:ty, $Rhs:ty) => {
@@ -52,7 +88,6 @@ mod tedious {
 }
 
 mod foreign {
-    use std::borrow::Cow;
     use crate::{StrChunk, StrChunkMut};
 
     macro_rules! impl_partial_eq_rhs {
@@ -73,6 +108,81 @@ mod foreign {
 #[cfg(test)]
 mod tests {
 
+    mod take_range {
+        macro_rules! test_take_range_panics_with {
+            ($func:expr) => {
+                #[test]
+                #[should_panic]
+                fn panics_on_oob_start() {
+                    let mut buf = "Hello".into();
+                    $func(&mut buf, 6..);
+                }
+
+                #[test]
+                #[should_panic]
+                fn panics_on_oob_end() {
+                    let mut buf = "Hello".into();
+                    $func(&mut buf, ..6);
+                }
+
+                #[test]
+                #[should_panic]
+                fn panics_on_oob_end_inclusive() {
+                    let mut buf = "Hello".into();
+                    $func(&mut buf, ..=5);
+                }
+
+                #[test]
+                #[should_panic]
+                fn panics_on_split_utf8_start() {
+                    let mut buf = "Привет".into();
+                    $func(&mut buf, 3..);
+                }
+
+                #[test]
+                #[should_panic]
+                fn panics_on_split_utf8_end() {
+                    let mut buf = "Привет".into();
+                    $func(&mut buf, ..3);
+                }
+
+                #[test]
+                #[should_panic]
+                fn panics_on_split_utf8_end_inclusive() {
+                    let mut buf = "Привет".into();
+                    $func(&mut buf, ..=2);
+                }
+            };
+        }
+
+        macro_rules! test_take_range {
+            ($T:ty) => {
+                mod take_range {
+                    use range_split::TakeRange;
+
+                    test_take_range_panics_with!(|buf: &mut $T, range| {
+                        TakeRange::take_range(buf, range)
+                    });
+                }
+
+                mod remove_range {
+                    use range_split::TakeRange;
+
+                    test_take_range_panics_with!(|buf: &mut $T, range| {
+                        TakeRange::remove_range(buf, range);
+                    });
+                }
+            };
+        }
+
+        mod chunk {
+            test_take_range!(crate::StrChunk);
+        }
+        mod chunk_mut {
+            test_take_range!(crate::StrChunkMut);
+        }
+    }
+
     const TEST_STR: &'static str = "Hello";
 
     macro_rules! test_all_str_types {
@@ -81,12 +191,13 @@ mod tests {
             $macro! { str, $v, *TEST_STR }
             $macro! { str_ref, $v, TEST_STR }
             $macro! { string, $v, String::from(TEST_STR) }
-            $macro! { cow_borrowed, $v, Cow::from(TEST_STR) }
-            $macro! { cow_owned, $v, Cow::from(String::from(TEST_STR)) }
+            $macro! { cow_borrowed, $v, ::std::borrow::Cow::from(TEST_STR) }
+            $macro! { cow_owned, $v, ::std::borrow::Cow::from(String::from(TEST_STR)) }
         };
     }
 
     mod eq {
+        use super::*;
 
         macro_rules! test_eq {
             ($name:ident, $arg1:expr, $arg2:expr) => {
@@ -99,16 +210,14 @@ mod tests {
         }
 
         mod chunk {
-            use super::super::TEST_STR;
-            use std::borrow::Cow;
+            use super::*;
             use crate::StrChunk;
 
             test_all_str_types! { test_eq!, StrChunk::from_static(TEST_STR) }
         }
 
         mod chunk_mut {
-            use super::super::TEST_STR;
-            use std::borrow::Cow;
+            use super::*;
             use crate::StrChunkMut;
 
             test_all_str_types! { test_eq!, StrChunkMut::from(TEST_STR) }

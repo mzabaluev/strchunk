@@ -16,8 +16,7 @@ use std::str::{self, Utf8Error};
 // macro
 use range_split::assert_str_range;
 
-#[cfg_attr(not(feature = "specialization"), derive(PartialEq))]
-#[derive(Clone, Default, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Default, Eq, Ord, Hash)]
 pub struct StrChunk {
     bytes: Bytes,
 }

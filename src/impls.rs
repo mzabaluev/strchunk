@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "specialization", allow(unused_macros))]
+
 use crate::{StrChunk, StrChunkMut};
 
 use range_split::TakeRange;
@@ -36,15 +38,16 @@ impl_take_range!(<RangeToInclusive<usize>> for StrChunkMut);
 
 #[cfg(feature = "specialization")]
 mod generic {
-
     use crate::{StrChunk, StrChunkMut};
     use std::borrow::Borrow;
+    use std::cmp::Ordering;
+
     impl<Rhs> PartialEq<Rhs> for StrChunk
     where
         Rhs: ?Sized + Borrow<str>,
     {
         default fn eq(&self, other: &Rhs) -> bool {
-            **self == *other.borrow()
+            self.as_str() == other.borrow()
         }
     }
 
@@ -53,17 +56,47 @@ mod generic {
         Rhs: ?Sized + Borrow<str>,
     {
         default fn eq(&self, other: &Rhs) -> bool {
-            Borrow::<str>::borrow(self) == other.borrow()
+            self.as_str() == other.borrow()
+        }
+    }
+
+    impl<Rhs> PartialOrd<Rhs> for StrChunk
+    where
+        Rhs: ?Sized + Borrow<str>,
+    {
+        default fn partial_cmp(&self, other: &Rhs) -> Option<Ordering> {
+            PartialOrd::partial_cmp(self.as_str(), other.borrow())
+        }
+    }
+
+    impl<Rhs> PartialOrd<Rhs> for StrChunkMut
+    where
+        Rhs: ?Sized + Borrow<str>,
+    {
+        default fn partial_cmp(&self, other: &Rhs) -> Option<Ordering> {
+            PartialOrd::partial_cmp(self.as_str(), other.borrow())
         }
     }
 }
 
+macro_rules! for_all_foreign_str_types {
+    {
+        $impl_macro:ident! for $T:ty
+    } => {
+        $impl_macro! { <str> for $T }
+        $impl_macro! { <&'a str> for $T }
+        $impl_macro! { <String> for $T }
+        $impl_macro! { <::std::borrow::Cow<'a, str>> for $T }
+    };
+}
+
 macro_rules! for_all_str_types {
-    ($macro:ident! for $T:ty) => {
-        $macro! { $T, str }
-        $macro! { $T, &'a str }
-        $macro! { $T, String }
-        $macro! { $T, ::std::borrow::Cow<'a, str> }
+    {
+        $impl_macro:ident! for $T:ty
+    } => {
+        $impl_macro! { <crate::StrChunk> for $T }
+        $impl_macro! { <crate::StrChunkMut> for $T }
+        for_all_foreign_str_types! { $impl_macro! for $T }
     };
 }
 
@@ -71,13 +104,32 @@ macro_rules! for_all_str_types {
 mod tedious {
     use crate::{StrChunk, StrChunkMut};
     use std::borrow::Borrow;
+    use std::cmp::Ordering;
 
     macro_rules! impl_partial_eq {
-        ($T:ty, $Rhs:ty) => {
+        {
+            <$Rhs:ty> for $T:ty
+        } => {
             impl<'a> PartialEq<$Rhs> for $T {
                 #[inline]
                 fn eq(&self, other: &$Rhs) -> bool {
-                    Borrow::<str>::borrow(self) == &other[..]
+                    Borrow::<str>::borrow(self) == Borrow::<str>::borrow(other)
+                }
+            }
+        };
+    }
+
+    macro_rules! impl_partial_ord {
+        {
+            <$Rhs:ty> for $T:ty
+        } => {
+            impl<'a> PartialOrd<$Rhs> for $T {
+                #[inline]
+                fn partial_cmp(&self, other: &$Rhs) -> Option<Ordering> {
+                    PartialOrd::partial_cmp(
+                        Borrow::<str>::borrow(self),
+                        Borrow::<str>::borrow(other),
+                    )
                 }
             }
         };
@@ -85,13 +137,19 @@ mod tedious {
 
     for_all_str_types! { impl_partial_eq! for StrChunk }
     for_all_str_types! { impl_partial_eq! for StrChunkMut }
+    for_all_str_types! { impl_partial_ord! for StrChunk }
+    for_all_str_types! { impl_partial_ord! for StrChunkMut }
 }
 
 mod foreign {
     use crate::{StrChunk, StrChunkMut};
+    use std::borrow::Borrow;
+    use std::cmp::Ordering;
 
     macro_rules! impl_partial_eq_rhs {
-        ($T:ty, $Lhs:ty) => {
+        {
+            <$Lhs:ty> for $T:ty
+        } => {
             impl<'a> PartialEq<$T> for $Lhs {
                 #[inline]
                 fn eq(&self, other: &$T) -> bool {
@@ -101,12 +159,31 @@ mod foreign {
         };
     }
 
-    for_all_str_types! { impl_partial_eq_rhs! for StrChunk }
-    for_all_str_types! { impl_partial_eq_rhs! for StrChunkMut }
+    macro_rules! impl_partial_ord_rhs {
+        {
+            <$Lhs:ty> for $T:ty
+        } => {
+            impl<'a> PartialOrd<$T> for $Lhs {
+                #[inline]
+                fn partial_cmp(&self, other: &$T) -> Option<Ordering> {
+                    PartialOrd::partial_cmp(
+                        Borrow::<str>::borrow(self),
+                        Borrow::<str>::borrow(other),
+                    )
+                }
+            }
+        };
+    }
+
+    for_all_foreign_str_types! { impl_partial_eq_rhs! for StrChunk }
+    for_all_foreign_str_types! { impl_partial_eq_rhs! for StrChunkMut }
+    for_all_foreign_str_types! { impl_partial_ord_rhs! for StrChunk }
+    for_all_foreign_str_types! { impl_partial_ord_rhs! for StrChunkMut }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::{StrChunk, StrChunkMut};
 
     mod take_range {
         macro_rules! test_take_range_effects_with {
@@ -282,13 +359,15 @@ mod tests {
     }
 
     const TEST_STR: &'static str = "Hello";
+    const TEST_STR_LESSER: &'static str = "Hell";
 
     macro_rules! test_all_str_types {
         ($macro:ident!, $v:expr) => {
-            $macro! { within_type, $v, $v }
             $macro! { str, $v, *TEST_STR }
             $macro! { str_ref, $v, TEST_STR }
             $macro! { string, $v, String::from(TEST_STR) }
+            $macro! { chunk, $v, crate::StrChunk::from(TEST_STR) }
+            $macro! { chunk_mut, $v, crate::StrChunkMut::from(TEST_STR) }
             $macro! { cow_borrowed, $v, ::std::borrow::Cow::from(TEST_STR) }
             $macro! { cow_owned, $v, ::std::borrow::Cow::from(String::from(TEST_STR)) }
         };
@@ -297,7 +376,7 @@ mod tests {
     mod eq {
         use super::*;
 
-        macro_rules! test_eq {
+        macro_rules! test_equal {
             ($name:ident, $arg1:expr, $arg2:expr) => {
                 #[test]
                 fn $name() {
@@ -309,16 +388,68 @@ mod tests {
 
         mod chunk {
             use super::*;
-            use crate::StrChunk;
-
-            test_all_str_types! { test_eq!, StrChunk::from_static(TEST_STR) }
+            test_all_str_types! { test_equal!, StrChunk::from_static(TEST_STR) }
         }
 
         mod chunk_mut {
             use super::*;
-            use crate::StrChunkMut;
+            test_all_str_types! { test_equal!, StrChunkMut::from(TEST_STR) }
+        }
+    }
 
-            test_all_str_types! { test_eq!, StrChunkMut::from(TEST_STR) }
+    mod ord {
+        use super::*;
+
+        mod equal {
+            use super::*;
+
+            macro_rules! test_equal {
+                ($name:ident, $arg1:expr, $arg2:expr) => {
+                    #[test]
+                    fn $name() {
+                        assert!($arg1 <= $arg2);
+                        assert!(!($arg1 > $arg2));
+                        assert!($arg2 >= $arg1);
+                        assert!(!($arg2 < $arg1));
+                    }
+                };
+            }
+
+            mod chunk {
+                use super::*;
+                test_all_str_types! { test_equal!, StrChunk::from_static(TEST_STR) }
+            }
+
+            mod chunk_mut {
+                use super::*;
+                test_all_str_types! { test_equal!, StrChunkMut::from(TEST_STR) }
+            }
+        }
+
+        mod unequal {
+            use super::*;
+
+            macro_rules! test_lesser {
+                ($name:ident, $arg1:expr, $arg2:expr) => {
+                    #[test]
+                    fn $name() {
+                        assert!($arg1 < $arg2);
+                        assert!(!($arg1 >= $arg2));
+                        assert!($arg2 > $arg1);
+                        assert!(!($arg2 <= $arg1));
+                    }
+                };
+            }
+
+            mod chunk {
+                use super::*;
+                test_all_str_types! { test_lesser!, StrChunk::from_static(TEST_STR_LESSER) }
+            }
+
+            mod chunk_mut {
+                use super::*;
+                test_all_str_types! { test_lesser!, StrChunkMut::from(TEST_STR_LESSER) }
+            }
         }
     }
 }

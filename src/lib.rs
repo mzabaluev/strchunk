@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "specialization", feature(specialization))]
+#![warn(clippy::all)]
 
 mod chunk;
 mod chunk_mut;

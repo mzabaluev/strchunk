@@ -183,6 +183,8 @@ mod foreign {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::cmp_owned)]
+
     use crate::{StrChunk, StrChunkMut};
 
     mod take_range {
@@ -358,8 +360,8 @@ mod tests {
         }
     }
 
-    const TEST_STR: &'static str = "Hello";
-    const TEST_STR_LESSER: &'static str = "Hell";
+    const TEST_STR: &str = "Hello";
+    const TEST_STR_LESSER: &str = "Hell";
 
     macro_rules! test_all_str_types {
         ($macro:ident!, $v:expr) => {

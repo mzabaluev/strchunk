@@ -9,6 +9,7 @@ use std::fmt::{self, Debug, Display};
 use std::io::Cursor;
 use std::iter::{FromIterator, Iterator};
 use std::ops::RangeBounds;
+use std::ops::{Deref, DerefMut};
 use std::str::{self, Utf8Error};
 
 // macro
@@ -223,6 +224,22 @@ impl Borrow<str> for StrChunkMut {
 impl BorrowMut<str> for StrChunkMut {
     #[inline]
     fn borrow_mut(&mut self) -> &mut str {
+        self.as_mut_str()
+    }
+}
+
+impl Deref for StrChunkMut {
+    type Target = str;
+
+    #[inline]
+    fn deref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl DerefMut for StrChunkMut {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut str {
         self.as_mut_str()
     }
 }

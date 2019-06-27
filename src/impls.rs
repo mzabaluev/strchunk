@@ -452,4 +452,29 @@ mod tests {
             }
         }
     }
+
+    mod hash {
+        use super::*;
+
+        macro_rules! test_hash {
+            ($v:expr) => {
+                #[test]
+                fn same_as_str() {
+                    let mut set = ::std::collections::HashSet::new();
+                    set.insert($v);
+                    assert!(set.contains(TEST_STR));
+                }
+            };
+        }
+
+        mod chunk {
+            use super::*;
+            test_hash!(StrChunk::from(TEST_STR));
+        }
+
+        mod chunk_mut {
+            use super::*;
+            test_hash!(StrChunkMut::from(TEST_STR));
+        }
+    }
 }

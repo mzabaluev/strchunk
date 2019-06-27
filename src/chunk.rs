@@ -7,6 +7,7 @@ use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
+use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::iter::FromIterator;
 use std::ops::Deref;
@@ -16,7 +17,7 @@ use std::str::{self, Utf8Error};
 // macro
 use range_split::assert_str_range;
 
-#[derive(Clone, Default, Eq, Ord, Hash)]
+#[derive(Clone, Default, Eq, Ord)]
 pub struct StrChunk {
     bytes: Bytes,
 }
@@ -178,6 +179,12 @@ impl Deref for StrChunk {
     #[inline]
     fn deref(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl Hash for StrChunk {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state)
     }
 }
 

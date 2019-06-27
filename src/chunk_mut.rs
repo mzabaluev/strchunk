@@ -6,6 +6,7 @@ use range_split::TakeRange;
 use std::borrow::{Borrow, BorrowMut};
 use std::convert::TryFrom;
 use std::fmt::{self, Debug, Display};
+use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::iter::{FromIterator, Iterator};
 use std::ops::RangeBounds;
@@ -15,7 +16,7 @@ use std::str::{self, Utf8Error};
 // macro
 use range_split::assert_str_range;
 
-#[derive(Clone, Default, Eq, Ord, Hash)]
+#[derive(Clone, Default, Eq, Ord)]
 pub struct StrChunkMut {
     bytes: BytesMut,
 }
@@ -241,6 +242,12 @@ impl DerefMut for StrChunkMut {
     #[inline]
     fn deref_mut(&mut self) -> &mut str {
         self.as_mut_str()
+    }
+}
+
+impl Hash for StrChunkMut {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state)
     }
 }
 

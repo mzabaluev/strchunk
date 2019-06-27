@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "specialization", feature(specialization))]
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all)]
 
 mod chunk;

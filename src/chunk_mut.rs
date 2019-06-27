@@ -7,7 +7,6 @@ use std::borrow::{Borrow, BorrowMut};
 use std::convert::TryFrom;
 use std::fmt::{self, Debug, Display};
 use std::hash::{Hash, Hasher};
-use std::io::Cursor;
 use std::iter::{FromIterator, Iterator};
 use std::ops::RangeBounds;
 use std::ops::{Deref, DerefMut};
@@ -252,7 +251,7 @@ impl Hash for StrChunkMut {
 }
 
 impl IntoBuf for StrChunkMut {
-    type Buf = Cursor<BytesMut>;
+    type Buf = <BytesMut as IntoBuf>::Buf;
 
     #[inline]
     fn into_buf(self) -> Self::Buf {
@@ -261,7 +260,7 @@ impl IntoBuf for StrChunkMut {
 }
 
 impl<'a> IntoBuf for &'a StrChunkMut {
-    type Buf = Cursor<&'a BytesMut>;
+    type Buf = <&'a BytesMut as IntoBuf>::Buf;
 
     #[inline]
     fn into_buf(self) -> Self::Buf {

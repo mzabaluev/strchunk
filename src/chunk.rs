@@ -8,7 +8,6 @@ use std::convert::{TryFrom, TryInto};
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
 use std::hash::{Hash, Hasher};
-use std::io::Cursor;
 use std::iter::FromIterator;
 use std::ops::Deref;
 use std::ops::RangeBounds;
@@ -189,7 +188,7 @@ impl Hash for StrChunk {
 }
 
 impl IntoBuf for StrChunk {
-    type Buf = Cursor<Bytes>;
+    type Buf = <Bytes as IntoBuf>::Buf;
 
     #[inline]
     fn into_buf(self) -> Self::Buf {
@@ -198,7 +197,7 @@ impl IntoBuf for StrChunk {
 }
 
 impl<'a> IntoBuf for &'a StrChunk {
-    type Buf = Cursor<&'a Bytes>;
+    type Buf = <&'a Bytes as IntoBuf>::Buf;
 
     #[inline]
     fn into_buf(self) -> Self::Buf {

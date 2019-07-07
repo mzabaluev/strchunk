@@ -76,11 +76,6 @@ impl StrChunkMut {
     }
 
     #[inline]
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-
-    #[inline]
     pub fn put_char(&mut self, c: char) {
         let bytes = &mut self.bytes;
         unsafe {
@@ -271,5 +266,23 @@ impl<'a> IntoBuf for &'a StrChunkMut {
 impl FromIterator<char> for StrChunkMut {
     fn from_iter<T: IntoIterator<Item = char>>(into_iter: T) -> Self {
         StrChunkMut::from_iter_internal(into_iter.into_iter())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn as_bytes_via_deref() {
+        let s = StrChunkMut::from("Hello");
+        assert_eq!(s.as_bytes(), b"Hello");
+    }
+
+    #[test]
+    fn as_bytes_mut_via_deref_mut() {
+        let mut s = StrChunkMut::from("Hello");
+        let bytes = unsafe { s.as_bytes_mut() };
+        assert_eq!(bytes, b"Hello");
     }
 }

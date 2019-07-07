@@ -70,11 +70,6 @@ impl StrChunk {
         unsafe { str::from_utf8_unchecked(&self.bytes) }
     }
 
-    #[inline]
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-
     pub(crate) fn take_range<R>(&mut self, range: R) -> StrChunk
     where
         R: RangeBounds<usize> + Debug,
@@ -234,3 +229,14 @@ impl Display for ExtractUtf8Error {
 }
 
 impl Error for ExtractUtf8Error {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn as_bytes_via_deref() {
+        let s = StrChunk::from_static("Hello");
+        assert_eq!(s.as_bytes(), b"Hello");
+    }
+}

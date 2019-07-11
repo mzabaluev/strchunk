@@ -36,6 +36,16 @@ impl StrChunk {
         }
     }
 
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+
     pub fn extract_utf8(
         src: &mut BytesMut,
     ) -> Result<StrChunk, ExtractUtf8Error> {

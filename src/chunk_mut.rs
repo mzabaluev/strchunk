@@ -123,6 +123,17 @@ impl StrChunkMut {
         }
     }
 
+    /// Appends a string slice to the initialized string contents of the
+    /// `StrChunkMut`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the remaining capacity is not sufficient.
+    ///
+    pub fn put_str<S: AsRef<str>>(&mut self, string: S) {
+        self.bytes.put_slice(string.as_ref().as_bytes())
+    }
+
     fn from_iter_internal<T>(iter: T) -> Self
     where
         T: Iterator<Item = char>,

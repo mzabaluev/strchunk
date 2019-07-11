@@ -15,12 +15,21 @@ use std::str::{self, Utf8Error};
 // macro
 use range_split::assert_str_range;
 
+/// A unique reference to a contiguous UTF-8 slice in memory.
+///
+/// `StrChunkMut` builds on the memory slice view semantics of `BytesMut` from
+/// the `bytes` crate, with the added guarantee that the content is a valid
+/// UTF-8 string.
 #[derive(Clone, Default, Eq, Ord)]
 pub struct StrChunkMut {
     bytes: BytesMut,
 }
 
 impl StrChunkMut {
+    /// Creates a new `StrChunkMut` with default capacity.
+    ///
+    /// The returned buffer has initialized length 0 and unspecified
+    /// capacity.
     #[inline]
     pub fn new() -> Self {
         StrChunkMut {
@@ -28,6 +37,11 @@ impl StrChunkMut {
         }
     }
 
+    /// Creates a new `StrChunkMut` with the specified capacity.
+    ///
+    /// The returned buffer will be able to hold strings with lengths of
+    /// at least `capacity` without reallocating. The initialized length
+    /// is 0.
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
         StrChunkMut {
@@ -35,46 +49,71 @@ impl StrChunkMut {
         }
     }
 
+    /// Returns the length of the initialized string content in this
+    /// `StrChunkMut`.
     #[inline]
     pub fn len(&self) -> usize {
         self.bytes.len()
     }
 
+    /// Returns true if the initialized string content in `StrChunkMut`
+    /// has a length of 0.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.bytes.is_empty()
     }
 
+    /// Returns the maximum length of a string this `StrChunkMut` can hold
+    /// without reallocating.
     #[inline]
     pub fn capacity(&self) -> usize {
         self.bytes.capacity()
     }
 
+    /// Returns the maximum length of string content that can be appended
+    /// past the current length without reallocating.
     #[inline]
     pub fn remaining_mut(&self) -> usize {
         self.bytes.remaining_mut()
     }
 
+    /// Reserves capacity for at least `additional` more bytes of string
+    /// content to be inserted into this `StrChunkMut`.
     #[inline]
     pub fn reserve(&mut self, additional: usize) {
         self.bytes.reserve(additional)
     }
 
+    /// Converts `self` into an immutable `StrChunk`.
+    ///
+    /// The conversion is zero cost and is used to indicate that the slice
+    /// referenced by the handle will no longer be mutated.
+    /// Once the conversion is done, the handle can be cloned and shared
+    /// across threads.
     #[inline]
     pub fn freeze(self) -> StrChunk {
         StrChunk::from(self)
     }
 
+    /// Represents the `StrChunkMut` contents as a string slice.
     #[inline]
     pub fn as_str(&self) -> &str {
-        unsafe { str::from_utf8_unchecked(&*self.bytes) }
+        unsafe { str::from_utf8_unchecked(&self.bytes) }
     }
 
+    /// Represents the `StrChunkMut` contents as a mutable string slice.
     #[inline]
     pub fn as_mut_str(&mut self) -> &mut str {
-        unsafe { str::from_utf8_unchecked_mut(&mut *self.bytes) }
+        unsafe { str::from_utf8_unchecked_mut(&mut self.bytes) }
     }
 
+    /// Appends a Unicode character, encoded into UTF-8, to the initialized
+    /// string contents of the `StrChunkMut`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the remaining capacity is not sufficient to encode the
+    /// character. Four bytes are enough to encode any `char`.
     #[inline]
     pub fn put_char(&mut self, c: char) {
         let bytes = &mut self.bytes;

@@ -16,12 +16,20 @@ use std::str::{self, Utf8Error};
 // macro
 use range_split::assert_str_range;
 
+/// A reference counted contiguous UTF-8 slice in memory.
+///
+/// `StrChunk` builds on the memory slice view semantics of `Bytes` from
+/// the `bytes` crate, , with the added guarantee that the content is a valid
+/// UTF-8 string.
 #[derive(Clone, Default, Eq, Ord)]
 pub struct StrChunk {
     bytes: Bytes,
 }
 
 impl StrChunk {
+    /// Creates a new empty `StrChunk`.
+    ///
+    /// This does not allocate and the returned `StrChunk` handle will be empty.
     #[inline]
     pub fn new() -> StrChunk {
         StrChunk {
@@ -29,6 +37,10 @@ impl StrChunk {
         }
     }
 
+    /// Creates a new `StrChunk` from a static string slice.
+    ///
+    /// This constructor works similarly to `Bytes::from_static`
+    /// and uses the same internal optimizations.
     #[inline]
     pub fn from_static(s: &'static str) -> StrChunk {
         StrChunk {
@@ -36,16 +48,69 @@ impl StrChunk {
         }
     }
 
+    /// Returns the length of this `StrChunk` in bytes.
     #[inline]
     pub fn len(&self) -> usize {
         self.bytes.len()
     }
 
+    /// Returns true if the `StrChunk` has a length of 0.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.bytes.is_empty()
     }
 
+    /// Extracts UTF-8 content from a byte buffer.
+    ///
+    /// Extracts the longest leading part of the `BytesMut` view that
+    /// validates as UTF-8, leaving `src` with the remainder.
+    ///
+    /// # Errors
+    ///
+    /// If an invalid UTF-8 sequence is encountered within `src`, an error
+    /// value with recovery information is returned in the `Err` variant.
+    /// The valid UTF-8 part preceding the invalid sequence is taken
+    /// out of `src` and can be obtained from the `ExtractUtf8Error` value.
+    ///
+    /// # Example
+    ///
+    /// This function is intended to be used in decoding UTF-8 input from
+    /// a byte stream, where the application would read data into a memory
+    /// buffer managed under a `BytesMut` instance and then pass it to
+    /// `StrChunk::extract_utf8` to consume complete UTF-8 chunks
+    /// without copying the data.
+    ///
+    /// ```rust
+    /// use bytes::{BufMut, BytesMut};
+    /// use strchunk::StrChunk;
+    /// use std::io::{self, Read};
+    ///
+    /// struct Utf8Reader<R> {
+    ///     inner: R,
+    ///     buf: BytesMut,
+    /// }
+    ///
+    /// impl<R: Read> Utf8Reader<R> {
+    ///     fn read_utf8(&mut self) -> io::Result<StrChunk> {
+    ///         self.buf.reserve(1);
+    ///         unsafe {
+    ///             let bytes_read = self.inner.read(self.buf.bytes_mut())?;
+    ///             self.buf.advance_mut(bytes_read);
+    ///         }
+    ///         StrChunk::extract_utf8(&mut self.buf)
+    ///             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    ///     }
+    /// }
+    /// #
+    /// #   fn main() {
+    /// #       let mut reader = Utf8Reader {
+    /// #           inner: io::empty(),
+    /// #           buf: BytesMut::new(),
+    /// #       };
+    /// #       let s = reader.read_utf8().unwrap();
+    /// #       assert!(s.is_empty());
+    /// #   }
+    /// ```
     pub fn extract_utf8(
         src: &mut BytesMut,
     ) -> Result<StrChunk, ExtractUtf8Error> {
@@ -75,6 +140,7 @@ impl StrChunk {
         }
     }
 
+    /// Represents the `StrChunk` contents as a string slice.
     #[inline]
     pub fn as_str(&self) -> &str {
         unsafe { str::from_utf8_unchecked(&self.bytes) }
@@ -216,6 +282,27 @@ impl FromIterator<char> for StrChunk {
     }
 }
 
+/// An error returned by `StrChunk::extract_utf8`.
+///
+/// `ExtractUtf8Error` indicates an invalid UTF-8 sequence encountered
+/// in the input and provides information necessary for lossy recovery
+/// of an incremental UTF-8 decoding stream.
+///
+/// # Example
+///
+/// ```rust
+/// # use bytes::BytesMut;
+/// # use strchunk::StrChunk;
+/// const TEST_DATA: &[u8] = b"Hello \xF0\x90\x80World";
+/// let mut input = BytesMut::from(TEST_DATA);
+/// let err = StrChunk::extract_utf8(&mut input).unwrap_err();
+/// input.advance(err.error_len());
+/// let chunk1 = err.into_extracted();
+/// assert_eq!(chunk1, "Hello ");
+/// // Can inject a replacement character into the output, e.g. U+FFFD
+/// let chunk2 = StrChunk::extract_utf8(&mut input).unwrap();
+/// assert_eq!(chunk2, "World");
+/// ```
 #[derive(Clone, Debug)]
 pub struct ExtractUtf8Error {
     extracted: StrChunk,
@@ -223,12 +310,18 @@ pub struct ExtractUtf8Error {
 }
 
 impl ExtractUtf8Error {
-    pub fn into_extracted(self) -> StrChunk {
-        self.extracted
-    }
-
+    /// Length of the invalid byte sequence.
+    /// A lossy decoding procedure should advance the reading position
+    /// by the returned amount using the `advance` method of the input buffer
+    /// to resume decoding.
     pub fn error_len(&self) -> usize {
         self.error_len
+    }
+
+    /// Consumes `self` to obtain the string content extracted up to
+    /// the encountered invalid sequence.
+    pub fn into_extracted(self) -> StrChunk {
+        self.extracted
     }
 }
 

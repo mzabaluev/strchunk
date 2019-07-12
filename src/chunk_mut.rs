@@ -134,22 +134,29 @@ impl StrChunkMut {
         self.bytes.put_slice(string.as_ref().as_bytes())
     }
 
-    fn from_iter_internal<T>(iter: T) -> Self
+    fn from_iter_internal<T>(mut iter: T) -> Self
     where
         T: Iterator<Item = char>,
     {
+        let mut ch = match iter.next() {
+            None => return StrChunkMut::new(),
+            Some(ch) => ch,
+        };
         // Reserve at least as many bytes as there are promised to be
         // characters, plus some overhead so that the reserve call in the loop
         // never reallocates in the ideal case of one byte per character.
-        // If the size hint is 0, the first iteration should not reallocate,
-        // either.
-        let cap = iter.size_hint().0.saturating_add(4);
+        // If the iterator returns 0 as an inexact size hint, the first
+        // iteration should not reallocate, too.
+        let cap = iter.size_hint().0.saturating_add(5);
         let mut buf = StrChunkMut::with_capacity(cap);
-        for c in iter {
+        loop {
+            buf.put_char(ch);
+            ch = match iter.next() {
+                None => return buf,
+                Some(ch) => ch,
+            };
             buf.reserve(4);
-            buf.put_char(c);
         }
-        buf
     }
 
     pub(crate) fn take_range<R>(&mut self, range: R) -> StrChunkMut

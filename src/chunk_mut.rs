@@ -138,7 +138,7 @@ impl StrChunkMut {
     where
         T: Iterator<Item = char>,
     {
-        let mut ch = match iter.next() {
+        let ch = match iter.next() {
             None => return StrChunkMut::new(),
             Some(ch) => ch,
         };
@@ -149,13 +149,38 @@ impl StrChunkMut {
         // iteration should not reallocate, too.
         let cap = iter.size_hint().0.saturating_add(5);
         let mut buf = StrChunkMut::with_capacity(cap);
+        buf.extend_loop(ch, iter);
+        buf
+    }
+
+    fn extend_internal<I>(&mut self, mut iter: I)
+    where
+        I: Iterator<Item = char>,
+    {
+        let ch = match iter.next() {
+            None => return,
+            Some(ch) => ch,
+        };
+        // Reserve at least as many bytes as there are promised to be
+        // characters, plus some overhead so that the reserve call in the loop
+        // never reallocates in the ideal case of one byte per character.
+        // If the iterator returns 0 as an inexact size hint, the first
+        // iteration should not reallocate, too.
+        self.reserve(iter.size_hint().0.saturating_add(5));
+        self.extend_loop(ch, iter);
+    }
+
+    fn extend_loop<I>(&mut self, mut ch: char, mut iter: I)
+    where
+        I: Iterator<Item = char>,
+    {
         loop {
-            buf.put_char(ch);
+            self.put_char(ch);
             ch = match iter.next() {
-                None => return buf,
+                None => return,
                 Some(ch) => ch,
             };
-            buf.reserve(4);
+            self.reserve(4);
         }
     }
 
@@ -321,8 +346,20 @@ impl<'a> IntoBuf for &'a StrChunkMut {
 }
 
 impl FromIterator<char> for StrChunkMut {
-    fn from_iter<T: IntoIterator<Item = char>>(into_iter: T) -> Self {
-        StrChunkMut::from_iter_internal(into_iter.into_iter())
+    fn from_iter<T>(iterable: T) -> Self
+    where
+        T: IntoIterator<Item = char>,
+    {
+        StrChunkMut::from_iter_internal(iterable.into_iter())
+    }
+}
+
+impl Extend<char> for StrChunkMut {
+    fn extend<T>(&mut self, iterable: T)
+    where
+        T: IntoIterator<Item = char>,
+    {
+        self.extend_internal(iterable.into_iter())
     }
 }
 

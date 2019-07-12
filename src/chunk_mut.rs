@@ -134,7 +134,7 @@ impl StrChunkMut {
         self.bytes.put_slice(string.as_ref().as_bytes())
     }
 
-    fn from_iter_internal<T>(mut iter: T) -> Self
+    fn from_iter_chars<T>(mut iter: T) -> Self
     where
         T: Iterator<Item = char>,
     {
@@ -149,11 +149,11 @@ impl StrChunkMut {
         // iteration should not reallocate, too.
         let cap = iter.size_hint().0.saturating_add(5);
         let mut buf = StrChunkMut::with_capacity(cap);
-        buf.extend_loop(ch, iter);
+        buf.extend_chars_loop(ch, iter);
         buf
     }
 
-    fn extend_internal<I>(&mut self, mut iter: I)
+    fn extend_chars<I>(&mut self, mut iter: I)
     where
         I: Iterator<Item = char>,
     {
@@ -167,10 +167,10 @@ impl StrChunkMut {
         // If the iterator returns 0 as an inexact size hint, the first
         // iteration should not reallocate, too.
         self.reserve(iter.size_hint().0.saturating_add(5));
-        self.extend_loop(ch, iter);
+        self.extend_chars_loop(ch, iter);
     }
 
-    fn extend_loop<I>(&mut self, mut ch: char, mut iter: I)
+    fn extend_chars_loop<I>(&mut self, mut ch: char, mut iter: I)
     where
         I: Iterator<Item = char>,
     {
@@ -181,6 +181,16 @@ impl StrChunkMut {
                 Some(ch) => ch,
             };
             self.reserve(4);
+        }
+    }
+
+    fn extend_strs<'a, I>(&mut self, iter: I)
+    where
+        I: Iterator<Item = &'a str>,
+    {
+        for s in iter {
+            self.reserve(s.len());
+            self.put_str(s);
         }
     }
 
@@ -350,7 +360,7 @@ impl FromIterator<char> for StrChunkMut {
     where
         T: IntoIterator<Item = char>,
     {
-        StrChunkMut::from_iter_internal(iterable.into_iter())
+        StrChunkMut::from_iter_chars(iterable.into_iter())
     }
 }
 
@@ -359,7 +369,27 @@ impl Extend<char> for StrChunkMut {
     where
         T: IntoIterator<Item = char>,
     {
-        self.extend_internal(iterable.into_iter())
+        self.extend_chars(iterable.into_iter())
+    }
+}
+
+impl<'a> FromIterator<&'a str> for StrChunkMut {
+    fn from_iter<T>(iterable: T) -> Self
+    where
+        T: IntoIterator<Item = &'a str>,
+    {
+        let mut buf = StrChunkMut::new();
+        buf.extend_strs(iterable.into_iter());
+        buf
+    }
+}
+
+impl<'a> Extend<&'a str> for StrChunkMut {
+    fn extend<T>(&mut self, iterable: T)
+    where
+        T: IntoIterator<Item = &'a str>,
+    {
+        self.extend_strs(iterable.into_iter())
     }
 }
 

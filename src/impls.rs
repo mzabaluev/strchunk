@@ -83,10 +83,10 @@ macro_rules! for_all_foreign_str_types {
     {
         $impl_macro:ident! for $T:ty
     } => {
-        $impl_macro! { <str> for $T }
-        $impl_macro! { <&'a str> for $T }
-        $impl_macro! { <String> for $T }
-        $impl_macro! { <::std::borrow::Cow<'a, str>> for $T }
+        $impl_macro! { impl <str> for $T }
+        $impl_macro! { impl<'a> <&'a str> for $T }
+        $impl_macro! { impl <String> for $T }
+        $impl_macro! { impl<'a> <::std::borrow::Cow<'a, str>> for $T }
     };
 }
 
@@ -94,8 +94,8 @@ macro_rules! for_all_str_types {
     {
         $impl_macro:ident! for $T:ty
     } => {
-        $impl_macro! { <crate::StrChunk> for $T }
-        $impl_macro! { <crate::StrChunkMut> for $T }
+        $impl_macro! { impl <crate::StrChunk> for $T }
+        $impl_macro! { impl <crate::StrChunkMut> for $T }
         for_all_foreign_str_types! { $impl_macro! for $T }
     };
 }
@@ -108,9 +108,19 @@ mod tedious {
 
     macro_rules! impl_partial_eq {
         {
-            <$Rhs:ty> for $T:ty
+            impl<$a:lifetime> <$Rhs:ty> for $T:ty
         } => {
-            impl<'a> PartialEq<$Rhs> for $T {
+            impl<$a> PartialEq<$Rhs> for $T {
+                #[inline]
+                fn eq(&self, other: &$Rhs) -> bool {
+                    Borrow::<str>::borrow(self) == Borrow::<str>::borrow(other)
+                }
+            }
+        };
+        {
+            impl <$Rhs:ty> for $T:ty
+        } => {
+            impl PartialEq<$Rhs> for $T {
                 #[inline]
                 fn eq(&self, other: &$Rhs) -> bool {
                     Borrow::<str>::borrow(self) == Borrow::<str>::borrow(other)
@@ -121,9 +131,22 @@ mod tedious {
 
     macro_rules! impl_partial_ord {
         {
-            <$Rhs:ty> for $T:ty
+            impl<$a:lifetime> <$Rhs:ty> for $T:ty
         } => {
-            impl<'a> PartialOrd<$Rhs> for $T {
+            impl<$a> PartialOrd<$Rhs> for $T {
+                #[inline]
+                fn partial_cmp(&self, other: &$Rhs) -> Option<Ordering> {
+                    PartialOrd::partial_cmp(
+                        Borrow::<str>::borrow(self),
+                        Borrow::<str>::borrow(other),
+                    )
+                }
+            }
+        };
+        {
+            impl <$Rhs:ty> for $T:ty
+        } => {
+            impl PartialOrd<$Rhs> for $T {
                 #[inline]
                 fn partial_cmp(&self, other: &$Rhs) -> Option<Ordering> {
                     PartialOrd::partial_cmp(
@@ -148,9 +171,19 @@ mod foreign {
 
     macro_rules! impl_partial_eq_rhs {
         {
-            <$Lhs:ty> for $T:ty
+            impl<$a:lifetime> <$Lhs:ty> for $T:ty
         } => {
-            impl<'a> PartialEq<$T> for $Lhs {
+            impl<$a> PartialEq<$T> for $Lhs {
+                #[inline]
+                fn eq(&self, other: &$T) -> bool {
+                    other == self
+                }
+            }
+        };
+        {
+            impl <$Lhs:ty> for $T:ty
+        } => {
+            impl PartialEq<$T> for $Lhs {
                 #[inline]
                 fn eq(&self, other: &$T) -> bool {
                     other == self
@@ -161,9 +194,22 @@ mod foreign {
 
     macro_rules! impl_partial_ord_rhs {
         {
-            <$Lhs:ty> for $T:ty
+            impl<$a:lifetime> <$Lhs:ty> for $T:ty
         } => {
-            impl<'a> PartialOrd<$T> for $Lhs {
+            impl<$a> PartialOrd<$T> for $Lhs {
+                #[inline]
+                fn partial_cmp(&self, other: &$T) -> Option<Ordering> {
+                    PartialOrd::partial_cmp(
+                        Borrow::<str>::borrow(self),
+                        Borrow::<str>::borrow(other),
+                    )
+                }
+            }
+        };
+        {
+            impl <$Lhs:ty> for $T:ty
+        } => {
+            impl PartialOrd<$T> for $Lhs {
                 #[inline]
                 fn partial_cmp(&self, other: &$T) -> Option<Ordering> {
                     PartialOrd::partial_cmp(

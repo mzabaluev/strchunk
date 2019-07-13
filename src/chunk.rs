@@ -85,20 +85,31 @@ impl StrChunk {
     /// use strchunk::StrChunk;
     /// use std::io::{self, Read};
     ///
-    /// struct Utf8Reader<R> {
+    /// pub struct Utf8Reader<R> {
     ///     inner: R,
     ///     buf: BytesMut,
     /// }
     ///
     /// impl<R: Read> Utf8Reader<R> {
-    ///     fn read_utf8(&mut self) -> io::Result<StrChunk> {
+    ///     pub fn read_utf8(&mut self) -> io::Result<StrChunk> {
+    ///         let bytes_read = self.read_more_bytes()?;
+    ///         if bytes_read == 0 && !self.buf.is_empty() {
+    ///             return Err(io::Error::new(
+    ///                 io::ErrorKind::InvalidData,
+    ///                 "incomplete UTF-8 sequence in input",
+    ///             ))
+    ///         }
+    ///         StrChunk::extract_utf8(&mut self.buf)
+    ///             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    ///     }
+    ///
+    ///     fn read_more_bytes(&mut self) -> io::Result<usize> {
     ///         self.buf.reserve(1);
     ///         unsafe {
     ///             let bytes_read = self.inner.read(self.buf.bytes_mut())?;
     ///             self.buf.advance_mut(bytes_read);
+    ///             Ok(bytes_read)
     ///         }
-    ///         StrChunk::extract_utf8(&mut self.buf)
-    ///             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     ///     }
     /// }
     /// #

@@ -19,7 +19,7 @@ use range_split::assert_str_range;
 /// A reference counted contiguous UTF-8 slice in memory.
 ///
 /// `StrChunk` builds on the memory slice view semantics of `Bytes` from
-/// the `bytes` crate, , with the added guarantee that the content is a valid
+/// the `bytes` crate, with the added guarantee that the content is a valid
 /// UTF-8 string.
 #[derive(Clone, Default, Eq, Ord)]
 pub struct StrChunk {

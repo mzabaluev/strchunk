@@ -16,3 +16,7 @@ specialization = []
 [dependencies]
 bytes = "0.5"
 range-split = { version = "0.2.0-beta.2", features = ["bytes"] }
+
+[dev-dependencies]
+futures = "0.3"
+tokio = { version = "0.2", features = ["io-std", "io-util"] }

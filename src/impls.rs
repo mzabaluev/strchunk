@@ -341,6 +341,7 @@ mod tests {
         macro_rules! test_take_range_for {
             ($T:ty) => {
                 mod take_range {
+                    use super::*;
                     use range_split::TakeRange;
 
                     test_take_range_effects_with!(
@@ -374,6 +375,7 @@ mod tests {
                 }
 
                 mod remove_range {
+                    use super::*;
                     use range_split::TakeRange;
 
                     test_take_range_effects_with!(
@@ -399,10 +401,12 @@ mod tests {
         }
 
         mod chunk {
-            test_take_range_for!(crate::StrChunk);
+            use crate::StrChunk;
+            test_take_range_for!(StrChunk);
         }
         mod chunk_mut {
-            test_take_range_for!(crate::StrChunkMut);
+            use crate::StrChunkMut;
+            test_take_range_for!(StrChunkMut);
         }
     }
 

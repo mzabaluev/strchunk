@@ -1,6 +1,6 @@
 use crate::chunk::StrChunk;
 
-use bytes::{BufMut, Bytes, BytesMut, IntoBuf};
+use bytes::{BufMut, Bytes, BytesMut};
 use range_split::TakeRange;
 
 use std::borrow::{Borrow, BorrowMut};
@@ -8,6 +8,7 @@ use std::convert::TryFrom;
 use std::fmt::{self, Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::iter::{FromIterator, Iterator};
+use std::mem::MaybeUninit;
 use std::ops::RangeBounds;
 use std::ops::{Deref, DerefMut};
 use std::str::{self, Utf8Error};
@@ -117,9 +118,13 @@ impl StrChunkMut {
     #[inline]
     pub fn put_char(&mut self, c: char) {
         let bytes = &mut self.bytes;
+        let buf = bytes.bytes_mut() as *mut [MaybeUninit<u8>];
         unsafe {
-            let utf8_len = c.encode_utf8(bytes.bytes_mut()).len();
-            bytes.advance_mut(utf8_len);
+            // OK to transmute from *mut [MaybeUninit<u8>] here
+            // because encode_utf8 only writes to the buffer, and
+            // the cursor is then advanced by the number of bytes written.
+            let s = c.encode_utf8(&mut *(buf as *mut [u8]));
+            bytes.advance_mut(s.len());
         }
     }
 
@@ -227,13 +232,6 @@ impl Display for StrChunkMut {
     }
 }
 
-impl From<String> for StrChunkMut {
-    #[inline]
-    fn from(src: String) -> StrChunkMut {
-        StrChunkMut { bytes: src.into() }
-    }
-}
-
 impl<'a> From<&'a str> for StrChunkMut {
     #[inline]
     fn from(src: &'a str) -> StrChunkMut {
@@ -241,18 +239,10 @@ impl<'a> From<&'a str> for StrChunkMut {
     }
 }
 
-impl TryFrom<Bytes> for StrChunkMut {
-    type Error = Utf8Error;
-    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        str::from_utf8(&bytes)?;
-        Ok(StrChunkMut {
-            bytes: bytes.into(),
-        })
-    }
-}
-
 impl TryFrom<BytesMut> for StrChunkMut {
     type Error = Utf8Error;
+
+    #[inline]
     fn try_from(bytes: BytesMut) -> Result<Self, Self::Error> {
         str::from_utf8(&bytes)?;
         Ok(StrChunkMut { bytes })
@@ -334,24 +324,6 @@ impl DerefMut for StrChunkMut {
 impl Hash for StrChunkMut {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.as_str().hash(state)
-    }
-}
-
-impl IntoBuf for StrChunkMut {
-    type Buf = <BytesMut as IntoBuf>::Buf;
-
-    #[inline]
-    fn into_buf(self) -> Self::Buf {
-        self.bytes.into_buf()
-    }
-}
-
-impl<'a> IntoBuf for &'a StrChunkMut {
-    type Buf = <&'a BytesMut as IntoBuf>::Buf;
-
-    #[inline]
-    fn into_buf(self) -> Self::Buf {
-        (&self.bytes).into_buf()
     }
 }
 

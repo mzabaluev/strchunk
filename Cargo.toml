@@ -1,6 +1,6 @@
 [package]
 name = "strchunk"
-version = "0.1.0"
+version = "0.2.0-dev"
 edition = "2018"
 authors = ["Mikhail Zabaluev <mikhail.zabaluev@gmail.com>"]
 description = "A utility library for working with UTF-8 text in I/O"
@@ -14,5 +14,5 @@ categories = ["data-structures", "network-programming"]
 specialization = []
 
 [dependencies]
-bytes = "0.4"
-range-split = { version = "0.1", features = ["bytes"] }
+bytes = "0.5"
+range-split = { version = "0.2.0-beta.1", features = ["bytes"] }

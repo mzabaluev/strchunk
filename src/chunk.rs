@@ -1,6 +1,6 @@
 use crate::chunk_mut::StrChunkMut;
 
-use bytes::{Bytes, BytesMut, IntoBuf};
+use bytes::{Bytes, BytesMut};
 use range_split::TakeRange;
 
 use std::borrow::Borrow;
@@ -31,7 +31,7 @@ impl StrChunk {
     ///
     /// This does not allocate and the returned `StrChunk` handle will be empty.
     #[inline]
-    pub fn new() -> StrChunk {
+    pub fn new() -> Self {
         StrChunk {
             bytes: Bytes::new(),
         }
@@ -42,9 +42,17 @@ impl StrChunk {
     /// This constructor works similarly to `Bytes::from_static`
     /// and uses the same internal optimizations.
     #[inline]
-    pub fn from_static(s: &'static str) -> StrChunk {
+    pub fn from_static(s: &'static str) -> Self {
         StrChunk {
             bytes: Bytes::from_static(s.as_bytes()),
+        }
+    }
+
+    /// Creates a `StrChunk` instance from a string slice, by copying it.
+    #[inline]
+    pub fn copy_from_slice(s: &str) -> Self {
+        StrChunk {
+            bytes: Bytes::copy_from_slice(s.as_bytes()),
         }
     }
 
@@ -128,7 +136,7 @@ impl StrChunk {
         match str::from_utf8(src) {
             Ok(_) => {
                 // Valid UTF-8 fills the entire source buffer
-                let bytes = src.take().freeze();
+                let bytes = src.split().freeze();
                 Ok(StrChunk { bytes })
             }
             Err(e) => {
@@ -190,16 +198,16 @@ impl Display for StrChunk {
     }
 }
 
-impl From<String> for StrChunk {
+impl From<&'static str> for StrChunk {
     #[inline]
-    fn from(src: String) -> StrChunk {
+    fn from(src: &'static str) -> StrChunk {
         StrChunk { bytes: src.into() }
     }
 }
 
-impl<'a> From<&'a str> for StrChunk {
+impl From<String> for StrChunk {
     #[inline]
-    fn from(src: &'a str) -> StrChunk {
+    fn from(src: String) -> StrChunk {
         StrChunk { bytes: src.into() }
     }
 }
@@ -266,24 +274,6 @@ impl Deref for StrChunk {
 impl Hash for StrChunk {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.as_str().hash(state)
-    }
-}
-
-impl IntoBuf for StrChunk {
-    type Buf = <Bytes as IntoBuf>::Buf;
-
-    #[inline]
-    fn into_buf(self) -> Self::Buf {
-        self.bytes.into_buf()
-    }
-}
-
-impl<'a> IntoBuf for &'a StrChunk {
-    type Buf = <&'a Bytes as IntoBuf>::Buf;
-
-    #[inline]
-    fn into_buf(self) -> Self::Buf {
-        (&self.bytes).into_buf()
     }
 }
 

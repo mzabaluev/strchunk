@@ -82,54 +82,32 @@ impl StrChunk {
     ///
     /// # Example
     ///
+    /// Basic usage:
+    ///
+    /// ```rust
+    /// # use bytes::BytesMut;
+    /// # use strchunk::StrChunk;
+    /// let s1: &[u8] = b"\xd0\x97\xd0\xb4\xd1\x80\xd0\xb0\xd0";
+    /// let mut buf = BytesMut::from(s1);
+    ///
+    /// let chunk = StrChunk::extract_utf8(&mut buf).unwrap();
+    /// assert_eq!(chunk, "Здра");
+    /// assert_eq!(buf, b"\xd0"[..]);
+    ///
+    /// let s2: &[u8] = b"\xb2\xd1\x81\xd1\x82\xd0\xb2\xd1\x83\xd0\xb9";
+    /// buf.extend_from_slice(s2);
+    ///
+    /// let chunk = StrChunk::extract_utf8(&mut buf).unwrap();
+    /// assert_eq!(chunk, "вствуй");
+    /// assert!(buf.is_empty());
+    /// ```
+    ///
     /// This function is intended to be used in decoding UTF-8 input from
     /// a byte stream, where the application would read data into a memory
     /// buffer managed under a `BytesMut` instance and then pass it to
     /// `StrChunk::extract_utf8` to consume complete UTF-8 chunks
-    /// without copying the data.
-    ///
-    /// ```rust
-    /// use bytes::{BufMut, BytesMut};
-    /// use strchunk::StrChunk;
-    /// use std::io::{self, Read};
-    ///
-    /// pub struct Utf8Reader<R> {
-    ///     inner: R,
-    ///     buf: BytesMut,
-    /// }
-    ///
-    /// impl<R: Read> Utf8Reader<R> {
-    ///     pub fn read_utf8(&mut self) -> io::Result<StrChunk> {
-    ///         let bytes_read = self.read_more_bytes()?;
-    ///         if bytes_read == 0 && !self.buf.is_empty() {
-    ///             return Err(io::Error::new(
-    ///                 io::ErrorKind::InvalidData,
-    ///                 "incomplete UTF-8 sequence in input",
-    ///             ))
-    ///         }
-    ///         StrChunk::extract_utf8(&mut self.buf)
-    ///             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-    ///     }
-    ///
-    ///     fn read_more_bytes(&mut self) -> io::Result<usize> {
-    ///         self.buf.reserve(1);
-    ///         unsafe {
-    ///             let bytes_read = self.inner.read(self.buf.bytes_mut())?;
-    ///             self.buf.advance_mut(bytes_read);
-    ///             Ok(bytes_read)
-    ///         }
-    ///     }
-    /// }
-    /// #
-    /// #   fn main() {
-    /// #       let mut reader = Utf8Reader {
-    /// #           inner: io::empty(),
-    /// #           buf: BytesMut::new(),
-    /// #       };
-    /// #       let s = reader.read_utf8().unwrap();
-    /// #       assert!(s.is_empty());
-    /// #   }
-    /// ```
+    /// without copying the data. The `async_read` example in this project
+    /// provides a fully fledged demonstration using this method.
     pub fn extract_utf8(
         src: &mut BytesMut,
     ) -> Result<StrChunk, ExtractUtf8Error> {
@@ -292,7 +270,7 @@ impl FromIterator<char> for StrChunk {
 /// # Example
 ///
 /// ```rust
-/// # use bytes::BytesMut;
+/// # use bytes::{BytesMut, Buf};
 /// # use strchunk::StrChunk;
 /// const TEST_DATA: &[u8] = b"Hello \xF0\x90\x80World";
 /// let mut input = BytesMut::from(TEST_DATA);

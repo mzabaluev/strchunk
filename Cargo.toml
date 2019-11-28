@@ -1,6 +1,6 @@
 [package]
 name = "strchunk"
-version = "0.2.0-dev"
+version = "0.2.0-beta.1"
 edition = "2018"
 authors = ["Mikhail Zabaluev <mikhail.zabaluev@gmail.com>"]
 description = "A utility library for working with UTF-8 text in I/O"

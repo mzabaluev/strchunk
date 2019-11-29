@@ -32,36 +32,31 @@ impl<R> Utf8Reader<R> {
     }
 }
 
+fn extract_utf8_if_read_ok<'a>(
+    read_result: io::Result<usize>,
+    buf: &'a mut BytesMut,
+) -> io::Result<StrChunk> {
+    let bytes_read = read_result?;
+    if bytes_read == 0 && !buf.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "incomplete UTF-8 sequence in input",
+        ));
+    }
+    StrChunk::extract_utf8(buf)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+}
+
 impl<R: AsyncRead> Utf8Reader<R> {
     pub fn poll_read_utf8(
         self: Pin<&mut Self>,
         cx: &mut Context,
     ) -> Poll<io::Result<StrChunk>> {
-        self.poll_read_more(cx).map(|res| {
-            res.and_then(|buf| {
-                StrChunk::extract_utf8(buf)
-                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-            })
-        })
-    }
-
-    fn poll_read_more(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-    ) -> Poll<io::Result<&mut BytesMut>> {
         let (inner, buf) = self.split_borrows();
-        buf.reserve(1);
-        inner.poll_read_buf(cx, buf).map(|res| {
-            res.and_then(|bytes_read| {
-                if bytes_read == 0 && !buf.is_empty() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "incomplete UTF-8 sequence in input",
-                    ));
-                }
-                Ok(buf)
-            })
-        })
+        debug_assert!(buf.capacity() >= 4);
+        inner
+            .poll_read_buf(cx, buf)
+            .map(|res| extract_utf8_if_read_ok(res, buf))
     }
 }
 
@@ -85,8 +80,8 @@ where
 }
 
 fn main() {
-    let s = b"Hello, world!\n";
+    let s: &[_] = b"Hello, world!\n";
     let out = io::stdout();
     let mut runtime = Runtime::new().unwrap();
-    runtime.block_on(forward_all(&s[..], out)).unwrap();
+    runtime.block_on(forward_all(s, out)).unwrap();
 }

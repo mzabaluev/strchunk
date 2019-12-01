@@ -143,6 +143,36 @@ impl StrChunk {
         unsafe { str::from_utf8_unchecked(&self.bytes) }
     }
 
+    /// Returns a slice of self for the provided range.
+    ///
+    /// This will increment the reference count for the underlying memory and
+    /// return a new `StrChunk` handle set to the slice.
+    ///
+    /// This operation is `O(1)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use strchunk::StrChunk;
+    ///
+    /// let a = StrChunk::from(&"hello world"[..]);
+    /// let b = a.slice(2..5);
+    ///
+    /// assert_eq!(&b[..], "llo");
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// If one or both of the range bounds are finite, they must be within
+    /// the slice view of `self`. Furthermore, it is required that slicing
+    /// occurs at UTF-8 code point boundaries. If either of these checks fails,
+    /// this function panics.
+    pub fn slice(&self, range: impl RangeBounds<usize>) -> StrChunk {
+        assert_str_range!(self.as_str(), range);
+        let bytes = self.bytes.slice(range);
+        StrChunk { bytes }
+    }
+
     pub(crate) fn take_range<R>(&mut self, range: R) -> StrChunk
     where
         R: RangeBounds<usize> + Debug,

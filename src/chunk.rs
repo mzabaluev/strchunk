@@ -173,6 +173,38 @@ impl StrChunk {
         StrChunk { bytes }
     }
 
+    /// Returns a slice of self that is equivalent to the given `sub` slice.
+    ///
+    /// When processing a `StrChunk` buffer with other tools, one often gets a
+    /// `&str` which is in fact a slice of the `StrChunk`.
+    /// This function turns that `&str` into another `StrChunk`, as if one had
+    /// called `self.slice()` with the offsets that correspond to `sub`.
+    ///
+    /// This operation is `O(1)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use strchunk::StrChunk;
+    ///
+    /// let s = StrChunk::from(&"012345678"[..]);
+    /// let as_slice = s.as_str();
+    /// let subset = &as_slice[2..6];
+    /// let subslice = s.slice_ref(&subset);
+    /// assert_eq!(subslice, "2345");
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Requires that the given `sub` slice is in fact contained within the
+    /// `StrChunk` buffer; otherwise this function will panic.
+    #[inline]
+    pub fn slice_ref(&self, sub: &str) -> StrChunk {
+        // The slice must be valid UTF-8, no need for char boundary checks
+        let bytes = self.bytes.slice_ref(sub.as_bytes());
+        StrChunk { bytes }
+    }
+
     pub(crate) fn take_range<R>(&mut self, range: R) -> StrChunk
     where
         R: RangeBounds<usize> + Debug,

@@ -68,6 +68,57 @@ impl StrChunk {
         self.bytes.is_empty()
     }
 
+    /// Views UTF-8 content from a byte buffer.
+    ///
+    /// Builds a `StrChunk` from the longest leading part of the `Bytes` view that
+    /// validates as UTF-8. The new `StrChunk` contains a reference to the slice that is valid UTF-8.
+    ///
+    /// # Errors
+    ///
+    /// If an invalid UTF-8 sequence is encountered within `src`, an error
+    /// value with recovery information is returned in the `Err` variant.
+    /// The valid UTF-8 part preceding the invalid sequence is taken
+    /// out of `src` and can be obtained from the `ExtractUtf8Error` value.
+    ///
+    /// # Example
+    ///
+    /// Basic usage:
+    ///
+    /// ```rust
+    /// # use bytes::Bytes;
+    /// # use strchunk::StrChunk;
+    /// let s1: &[u8] = b"\xd0\x97\xd0\xb4\xd1\x80\xd0\xb0\xd0";
+    /// let mut buf = Bytes::from(s1);
+    ///
+    /// let chunk = StrChunk::view_utf8(buf.clone()).unwrap();
+    /// assert_eq!(chunk, "Здра");
+    /// ```
+    pub fn view_utf8(src: Bytes) -> Result<StrChunk, ExtractUtf8Error> {
+        match str::from_utf8(&src) {
+            Ok(_) => {
+                // Valid UTF-8 fills the entire source buffer
+                Ok(StrChunk { bytes: src })
+            }
+            Err(e) => {
+                let bytes = src.slice(0..e.valid_up_to());
+                let extracted = StrChunk { bytes };
+                match e.error_len() {
+                    None => {
+                        // Incomplete UTF-8 sequence seen at the end
+                        Ok(extracted)
+                    }
+                    Some(error_len) => {
+                        // Invalid UTF-8 encountered
+                        Err(ExtractUtf8Error {
+                            extracted,
+                            error_len,
+                        })
+                    }
+                }
+            }
+        }
+    }
+
     /// Extracts UTF-8 content from a byte buffer.
     ///
     /// Extracts the longest leading part of the `BytesMut` view that

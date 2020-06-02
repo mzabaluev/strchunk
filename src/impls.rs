@@ -511,6 +511,7 @@ mod tests {
         macro_rules! test_hash {
             ($v:expr) => {
                 #[test]
+                #[allow(clippy::mutable_key_type)]
                 fn same_as_str() {
                     let mut set = ::std::collections::HashSet::new();
                     set.insert($v);

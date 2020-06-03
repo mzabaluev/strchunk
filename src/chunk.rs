@@ -70,8 +70,9 @@ impl StrChunk {
 
     /// Extracts UTF-8 content from a byte buffer.
     ///
-    /// Extracts the longest leading part of the `BytesMut` view that
-    /// validates as UTF-8, leaving `src` with the remainder.
+    /// Extracts the content of `src` that validates as UTF-8, from the
+    /// beginning of the buffer up to a possibly incomplete UTF-8 sequence
+    /// at the end, which is left in `src`.
     ///
     /// # Errors
     ///

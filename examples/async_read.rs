@@ -25,9 +25,9 @@ impl<R> Utf8Reader<R> {
     }
 }
 
-fn extract_utf8_if_read_ok<'a>(
+fn extract_utf8_if_read_ok(
     read_result: io::Result<usize>,
-    buf: &'a mut BytesMut,
+    buf: &mut BytesMut,
 ) -> io::Result<StrChunk> {
     let bytes_read = read_result?;
     if bytes_read == 0 && !buf.is_empty() {
@@ -44,7 +44,7 @@ impl<R: AsyncRead> Utf8Reader<R> {
     #[project]
     pub fn poll_read_utf8(
         self: Pin<&mut Self>,
-        cx: &mut Context,
+        cx: &mut Context<'_>,
     ) -> Poll<io::Result<StrChunk>> {
         #[project]
         let Utf8Reader { inner, buf } = self.project();
@@ -55,19 +55,24 @@ impl<R: AsyncRead> Utf8Reader<R> {
     }
 }
 
+impl<R: AsyncRead + Unpin> Utf8Reader<R> {
+    async fn read_utf8(&mut self) -> io::Result<StrChunk> {
+        let mut pinned_self = Pin::new(self);
+        future::poll_fn(|cx| pinned_self.as_mut().poll_read_utf8(cx)).await
+    }
+}
+
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let s: &[_] = b"Hello, world!\n";
     let mut out = io::stdout();
     let mut reader = Utf8Reader::new(s);
     loop {
-        let chunk =
-            future::poll_fn(|cx| Pin::new(&mut reader).poll_read_utf8(cx))
-                .await?;
+        let chunk = reader.read_utf8().await?;
         if chunk.is_empty() {
             break;
         } else {
-            out.write_all(chunk.as_str().as_bytes()).await?;
+            out.write_all(chunk.as_bytes()).await?;
         }
     }
     out.flush().await?;

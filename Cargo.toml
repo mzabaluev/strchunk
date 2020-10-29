@@ -1,13 +1,13 @@
 [package]
 name = "strchunk"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2018"
 authors = ["Mikhail Zabaluev <mikhail.zabaluev@gmail.com>"]
-description = "A utility library for working with UTF-8 text in I/O"
+description = "Data types for working with UTF-8 text in I/O"
 repository = "https://github.com/mzabaluev/strchunk"
 readme = "README.md"
 license = "MIT"
-keywords = ["io", "buffers", "strings", "unicode", "text"]
+keywords = ["io", "zero-copy", "buffers", "strings", "unicode"]
 categories = ["data-structures", "network-programming"]
 
 [features]

@@ -8,9 +8,9 @@ use std::convert::TryFrom;
 use std::fmt::{self, Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::iter::{FromIterator, Iterator};
-use std::mem::MaybeUninit;
 use std::ops::RangeBounds;
 use std::ops::{Deref, DerefMut};
+use std::slice;
 use std::str::{self, Utf8Error};
 
 // macro
@@ -117,14 +117,17 @@ impl StrChunkMut {
     /// character. Four bytes are enough to encode any `char`.
     #[inline]
     pub fn put_char(&mut self, c: char) {
-        let bytes = &mut self.bytes;
-        let buf = bytes.bytes_mut() as *mut [MaybeUninit<u8>];
+        let buf = self.bytes.bytes_mut();
+        // Safety: OK to transmute from &mut UninitSlice here
+        // because encode_utf8 only writes to the buffer, and
+        // the cursor is then advanced by the number of bytes written.
+        // If encode_utf8 panics, we assume that its unwind path never reads
+        // from uninitialized bytes in the buffer, neither does unwind code
+        // in this stack frame.
         unsafe {
-            // OK to transmute from *mut [MaybeUninit<u8>] here
-            // because encode_utf8 only writes to the buffer, and
-            // the cursor is then advanced by the number of bytes written.
-            let s = c.encode_utf8(&mut *(buf as *mut [u8]));
-            bytes.advance_mut(s.len());
+            let buf = slice::from_raw_parts_mut(buf.as_mut_ptr(), buf.len());
+            let s = c.encode_utf8(buf);
+            self.bytes.advance_mut(s.len());
         }
     }
 

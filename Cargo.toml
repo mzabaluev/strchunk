@@ -14,10 +14,10 @@ categories = ["data-structures", "network-programming"]
 specialization = []
 
 [dependencies]
-bytes = "0.5"
-range-split = { version = "0.2", features = ["bytes"] }
+bytes = "0.6"
+range-split = { version = "0.3", features = ["bytes"] }
 
 [dev-dependencies]
 futures = "0.3"
-pin-project = "0.4"
-tokio = { version = "0.2", features = ["io-std", "io-util", "rt-threaded", "macros"] }
+pin-project = "1.0"
+tokio = { version = "0.3", features = ["io-std", "io-util", "rt-multi-thread", "macros"] }

@@ -1,15 +1,18 @@
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
 use futures::future;
-use pin_project::{pin_project, project};
+use futures::ready;
+use pin_project::pin_project;
 use strchunk::StrChunk;
+use tokio::io::ReadBuf;
 use tokio::prelude::*;
 
+use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 const DEFAULT_BUFFER_CAPACITY: usize = 8 * 1024;
 
-#[pin_project]
+#[pin_project(project = Utf8ReaderProj)]
 pub struct Utf8Reader<R> {
     #[pin]
     inner: R,
@@ -25,11 +28,10 @@ impl<R> Utf8Reader<R> {
     }
 }
 
-fn extract_utf8_if_read_ok(
-    read_result: io::Result<usize>,
+fn extract_utf8_if_read_not_empty(
+    bytes_read: usize,
     buf: &mut BytesMut,
 ) -> io::Result<StrChunk> {
-    let bytes_read = read_result?;
     if bytes_read == 0 && !buf.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -41,17 +43,18 @@ fn extract_utf8_if_read_ok(
 }
 
 impl<R: AsyncRead> Utf8Reader<R> {
-    #[project]
     pub fn poll_read_utf8(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<StrChunk>> {
-        #[project]
-        let Utf8Reader { inner, buf } = self.project();
+        let Utf8ReaderProj { inner, buf } = self.project();
         debug_assert!(buf.capacity() >= 4);
-        inner
-            .poll_read_buf(cx, buf)
-            .map(|res| extract_utf8_if_read_ok(res, buf))
+        let dst = buf.bytes_mut();
+        let dst = unsafe { &mut *(dst as *mut _ as *mut [MaybeUninit<u8>]) };
+        let mut dst = ReadBuf::uninit(dst);
+        ready!(inner.poll_read(cx, &mut dst)?);
+        let res = extract_utf8_if_read_not_empty(dst.filled().len(), buf);
+        Poll::Ready(res)
     }
 }
 

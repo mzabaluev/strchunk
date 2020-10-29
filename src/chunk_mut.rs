@@ -21,6 +21,7 @@ use range_split::assert_str_range;
 /// `StrChunkMut` builds on the memory slice view semantics of `BytesMut` from
 /// the `bytes` crate, with the added guarantee that the content is a valid
 /// UTF-8 string.
+#[allow(clippy::derive_ord_xor_partial_ord)]
 #[derive(Clone, Default, Eq, Ord)]
 pub struct StrChunkMut {
     bytes: BytesMut,

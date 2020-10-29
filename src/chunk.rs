@@ -21,6 +21,7 @@ use range_split::assert_str_range;
 /// `StrChunk` builds on the memory slice view semantics of `Bytes` from
 /// the `bytes` crate, with the added guarantee that the content is a valid
 /// UTF-8 string.
+#[allow(clippy::derive_ord_xor_partial_ord)]
 #[derive(Clone, Default, Eq, Ord)]
 pub struct StrChunk {
     bytes: Bytes,

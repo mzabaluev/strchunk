@@ -19,5 +19,4 @@ range-split = { version = "0.3", features = ["bytes"] }
 
 [dev-dependencies]
 futures = "0.3"
-pin-project = "1.0"
 tokio = { version = "0.3", features = ["io-std", "io-util", "rt-multi-thread", "macros"] }

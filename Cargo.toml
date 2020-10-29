@@ -11,6 +11,7 @@ keywords = ["io", "buffers", "strings", "unicode", "text"]
 categories = ["data-structures", "network-programming"]
 
 [features]
+unstable = ["specialization"]
 specialization = []
 
 [dependencies]

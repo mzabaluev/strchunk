@@ -40,10 +40,10 @@ impl StrChunk {
 
     /// Creates a new `StrChunk` from a static string slice.
     ///
-    /// This constructor works similarly to `Bytes::from_static`
-    /// and uses the same internal optimizations.
+    /// The returned value wraps a static string slice without
+    /// allocating or copying.
     #[inline]
-    pub fn from_static(s: &'static str) -> Self {
+    pub const fn from_static(s: &'static str) -> Self {
         StrChunk {
             bytes: Bytes::from_static(s.as_bytes()),
         }

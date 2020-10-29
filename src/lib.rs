@@ -6,7 +6,7 @@
 //! for the content to be valid UTF-8 to make it safely usable as
 //! Rust string slices.
 
-#![cfg_attr(feature = "specialization", feature(specialization))]
+#![cfg_attr(feature = "specialization", feature(min_specialization))]
 #![warn(rust_2018_idioms)]
 #![warn(missing_docs)]
 #![warn(clippy::all)]

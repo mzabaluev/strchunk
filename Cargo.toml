@@ -1,6 +1,6 @@
 [package]
 name = "strchunk"
-version = "0.3.0"
+version = "0.4.0-dev"
 edition = "2018"
 authors = ["Mikhail Zabaluev <mikhail.zabaluev@gmail.com>"]
 description = "Data types for working with UTF-8 text in I/O"
@@ -15,9 +15,9 @@ unstable = ["specialization"]
 specialization = []
 
 [dependencies]
-bytes = "0.6"
-range-split = { version = "0.3", features = ["bytes"] }
+bytes = "1.0"
+range-split = { version = "0.4", features = ["bytes"] }
 
 [dev-dependencies]
 futures = "0.3"
-tokio = { version = "0.3", features = ["io-std", "io-util", "rt-multi-thread", "macros"] }
+tokio = { version = "1.1", features = ["io-std", "io-util", "rt-multi-thread", "macros"] }

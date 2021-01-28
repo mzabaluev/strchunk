@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 use strchunk::StrChunk;
-use tokio::prelude::*;
+use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWriteExt};
 
 const DEFAULT_BUFFER_CAPACITY: usize = 8 * 1024;
 

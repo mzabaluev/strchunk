@@ -118,7 +118,7 @@ impl StrChunkMut {
     /// character. Four bytes are enough to encode any `char`.
     #[inline]
     pub fn put_char(&mut self, c: char) {
-        let buf = self.bytes.bytes_mut();
+        let buf = self.bytes.chunk_mut();
         // Safety: OK to transmute from &mut UninitSlice here
         // because encode_utf8 only writes to the buffer, and
         // the cursor is then advanced by the number of bytes written.

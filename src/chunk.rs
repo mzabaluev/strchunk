@@ -254,6 +254,16 @@ impl From<String> for StrChunk {
     }
 }
 
+impl From<Box<str>> for StrChunk {
+    #[inline]
+    fn from(boxed_str: Box<str>) -> StrChunk {
+        let boxed_bytes: Box<[u8]> = boxed_str.into();
+        StrChunk {
+            bytes: boxed_bytes.into(),
+        }
+    }
+}
+
 impl TryFrom<Bytes> for StrChunk {
     type Error = Utf8Error;
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
